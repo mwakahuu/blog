@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { POSTS } from './data/posts';
 import { VIDEOS } from './data/videos';
 import { INITIAL_GALLERY_IMAGES } from './data/gallery';
@@ -25,12 +25,57 @@ import { Footer } from './components/Footer';
 import { BannerAd } from './components/BannerAds';
 import { SearchModal, SubscribeModal, AdInfoModal } from './components/Modals';
 
+const STORAGE_KEYS = {
+  posts: 'blog_posts',
+  videos: 'blog_videos',
+  gallery: 'blog_gallery',
+};
+
+const readStorage = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(key);
+    if (!storedValue) {
+      return fallback;
+    }
+    return JSON.parse(storedValue) as T;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function App() {
-  const [posts, setPosts] = useState<Post[]>(POSTS);
-  const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
+  const [posts, setPosts] = useState<Post[]>(() => readStorage<Post[]>(STORAGE_KEYS.posts, POSTS));
+  const [videos, setVideos] = useState<VideoItem[]>(() => readStorage<VideoItem[]>(STORAGE_KEYS.videos, VIDEOS));
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(() => readStorage<GalleryImage[]>(STORAGE_KEYS.gallery, INITIAL_GALLERY_IMAGES));
   const [currentView, setCurrentView] = useState<ViewMode>('home');
-  const [selectedPost, setSelectedPost] = useState<Post>(POSTS[0]);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.posts, JSON.stringify(posts));
+  }, [posts]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.videos, JSON.stringify(videos));
+  }, [videos]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.gallery, JSON.stringify(galleryImages));
+  }, [galleryImages]);
+
+  useEffect(() => {
+    if (!posts.length) {
+      setSelectedPost(null);
+      return;
+    }
+
+    if (!selectedPost || !posts.some((post) => post.id === selectedPost.id)) {
+      setSelectedPost(posts[0]);
+    }
+  }, [posts, selectedPost]);
 
   // Modals state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -74,7 +119,8 @@ export default function App() {
 
   // Admin content management functions
   const handleAddPost = (newPost: Post) => {
-    setPosts([newPost, ...posts]);
+    setPosts((prevPosts) => [newPost, ...prevPosts]);
+    setSelectedPost(newPost);
   };
 
   const handleUpdatePost = (updatedPost: Post) => {
@@ -85,7 +131,14 @@ export default function App() {
   };
 
   const handleDeletePost = (postId: string) => {
-    setPosts(posts.filter((p) => p.id !== postId));
+    setPosts((prevPosts) => {
+      const nextPosts = prevPosts.filter((p) => p.id !== postId);
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost(nextPosts[0] || null);
+        setCurrentView('home');
+      }
+      return nextPosts;
+    });
   };
 
   const handleAddVideo = (newVideo: VideoItem) => {

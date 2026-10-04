@@ -11,6 +11,10 @@ export const FeaturedNews: React.FC<FeaturedNewsProps> = ({
   posts,
   onSelectPost,
 }) => {
+  if (!posts.length) {
+    return null;
+  }
+
   // Display top 5 featured episodes/stories
   const featuredPosts = posts.slice(0, 5);
 

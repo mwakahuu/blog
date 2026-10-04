@@ -201,7 +201,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
 }) => {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
 
-  if (!isOpen) return null;
+  if (!isOpen || !posts.length) return null;
 
   const videoItems = [
     {

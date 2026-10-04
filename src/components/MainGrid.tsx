@@ -11,6 +11,17 @@ export const MainGrid: React.FC<MainGridProps> = ({
   posts,
   onSelectPost,
 }) => {
+  if (!posts.length) {
+    return (
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 select-none">
+        <div className="rounded-sm border border-dashed border-slate-300 bg-white p-10 text-center">
+          <h2 className="text-xl font-bold uppercase tracking-wide text-slate-700 font-condensed">No published stories yet</h2>
+          <p className="mt-2 text-sm text-slate-500">Add a post from the admin panel and it will appear here automatically.</p>
+        </div>
+      </section>
+    );
+  }
+
   // Use posts array dynamically so newest story episodes appear on front page
   const mainStory = posts[0];
   const sportsPost = posts[1] || posts[0];

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import '@videojs/react/video/skin.css';
-import { VideoPlayer, VideoSkin, Video } from '@videojs/react/video';
 import { VideoItem } from '../types';
 import { VIDEOS } from '../data/videos';
 import { BannerAd } from './BannerAds';
+import { HlsVideoPlayer } from './HlsVideoPlayer';
 
 interface VideosPageProps {
   videos?: VideoItem[];
@@ -42,16 +41,13 @@ export const VideosPage: React.FC<VideosPageProps> = ({ videos = VIDEOS }) => {
 
       {/* Main Web Video.js Player Component */}
       <div className="bg-black text-white rounded-xs overflow-hidden shadow-2xl mb-8 border border-slate-800">
-        <div className="w-full bg-black">
-          <VideoPlayer key={selectedVideo.id}>
-            <VideoSkin style={{ width: '100%', aspectRatio: '16 / 9' }}>
-              <Video
-                src={currentVideoSrc}
-                playsInline
-                controls
-              />
-            </VideoSkin>
-          </VideoPlayer>
+        <div className="w-full bg-black" style={{ aspectRatio: '16 / 9' }}>
+          <HlsVideoPlayer
+            key={selectedVideo.id}
+            src={currentVideoSrc}
+            title={selectedVideo.title}
+            poster={selectedVideo.thumbnail}
+          />
         </div>
 
         {/* Video Info Description */}
