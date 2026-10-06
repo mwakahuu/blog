@@ -89,16 +89,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Widget 4: Static Banner Ad Bottom */}
       <BannerAd type="bottom" />
 
-      {/* Widget 5: About MagazineSpare */}
+      {/* Widget 5: About Chombezo */}
       <div className="bg-white p-5 border border-slate-200 shadow-xs">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-12 after:h-[2px] after:bg-red-600 font-condensed">
-          About MagazineSpare
+          Kuhusu CHOMBEZO
         </h3>
         <p className="text-xs text-slate-600 leading-relaxed mb-3">
-          MagazineSpare is a high-performance news portal and magazine theme rebuilt for Core Web Vitals and lightning-fast reading speeds.
+          CHOMBEZO ni jukwaa la habari, burudani na maudhui mbalimbali kwa wasomaji wetu.
         </p>
         <div className="flex items-center gap-2 text-xs font-bold text-red-600">
-          <span>By AF themes</span>
+          <span>By admin</span>
           <span>·</span>
           <span>Version 2.0.1</span>
         </div>

@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { POSTS } from './data/posts';
 import { VIDEOS } from './data/videos';
 import { INITIAL_GALLERY_IMAGES } from './data/gallery';
+import { PRODUCTS } from './data/shop';
 import { Post, Comment, ViewMode, VideoItem, GalleryImage } from './types';
 import { TopBar } from './components/TopBar';
 import { Header } from './components/Header';
@@ -46,6 +47,10 @@ const LEGACY_STORAGE_KEYS = {
   galleryImages: 'blog_gallery',
 } as const;
 
+const getViewFromPath = (): ViewMode => (
+  /^\/admin\/?$/.test(window.location.pathname) ? 'admin' : 'home'
+);
+
 const readLegacyContent = (): LegacyContent | null => {
   const stored = {
     posts: window.localStorage.getItem(LEGACY_STORAGE_KEYS.posts),
@@ -72,7 +77,7 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
-  const [currentView, setCurrentView] = useState<ViewMode>('home');
+  const [currentView, setCurrentView] = useState<ViewMode>(getViewFromPath);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
@@ -118,6 +123,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handlePopState = () => setCurrentView(getViewFromPath());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
     if (!posts.length) {
       setSelectedPost(null);
       return;
@@ -141,6 +152,11 @@ export default function App() {
   };
 
   const handleNavigate = (view: ViewMode) => {
+    if (view === 'admin' && !/^\/admin\/?$/.test(window.location.pathname)) {
+      window.history.pushState(null, '', '/admin');
+    } else if (view !== 'admin' && /^\/admin\/?$/.test(window.location.pathname)) {
+      window.history.pushState(null, '', '/');
+    }
     setCurrentView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -243,30 +259,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f9fa] text-slate-800 font-sans">
-      {/* 1. Top Social & Subscription Utility Bar */}
-      <TopBar
-        onOpenSubscribe={() => setIsSubscribeOpen(true)}
-        onNavigateHome={() => handleNavigate('home')}
-      />
-
-      {/* 2. Site Header with Logo & Static Banner Advertisement */}
-      <Header
-        onNavigateHome={() => handleNavigate('home')}
-        onAdClick={() => setIsAdInfoOpen(true)}
-      />
-
-      {/* 3. Primary navigation */}
-      <NavBar
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        onOpenSearch={() => setIsSearchOpen(true)}
-      />
-
-      {/* 4. Top Stories Scrolling Ticker */}
-      <TopStoriesTicker
-        posts={posts}
-        onSelectPost={handleSelectPost}
-      />
+      {currentView !== 'admin' && (
+        <>
+          <TopBar
+            onOpenSubscribe={() => setIsSubscribeOpen(true)}
+            onNavigateHome={() => handleNavigate('home')}
+          />
+          <Header
+            onNavigateHome={() => handleNavigate('home')}
+            onAdClick={() => setIsAdInfoOpen(true)}
+          />
+          <NavBar
+            currentView={currentView}
+            onNavigate={handleNavigate}
+            onOpenSearch={() => setIsSearchOpen(true)}
+          />
+          <TopStoriesTicker
+            posts={posts}
+            onSelectPost={handleSelectPost}
+          />
+        </>
+      )}
 
       {/* 5. Main Dynamic Body Area */}
       <main className="flex-1">
@@ -277,6 +290,49 @@ export default function App() {
               posts={posts}
               onSelectPost={handleSelectPost}
             />
+
+            <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="flex items-center justify-between border-b-2 border-slate-200 pb-2 mb-5">
+                <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 font-condensed">
+                  Bidhaa Zetu
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('shop')}
+                  className="text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700"
+                >
+                  Tazama bidhaa zote
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleNavigate('shop')}
+                aria-label={`Tazama bidhaa zote dukani. Bidhaa inayoangaziwa: ${PRODUCTS[0].title}`}
+                className="group w-full overflow-hidden border border-slate-200 bg-white text-left shadow-xs transition-colors hover:border-slate-300 sm:flex"
+              >
+                <img
+                  src={PRODUCTS[0].image}
+                  alt=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="aspect-[16/10] w-full object-cover sm:aspect-auto sm:h-56 sm:w-2/5"
+                />
+                <span className="flex flex-1 flex-col justify-center p-5 sm:p-8">
+                  <span className="text-lg font-bold text-slate-900 transition-colors group-hover:text-red-600 sm:text-2xl">
+                    {PRODUCTS[0].title}
+                  </span>
+                  <span className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-slate-600 sm:text-base">
+                    {PRODUCTS[0].description}
+                  </span>
+                  <span className="mt-4 text-lg font-extrabold text-emerald-700">
+                    {PRODUCTS[0].priceLabel}
+                  </span>
+                  <span className="mt-4 self-start bg-emerald-600 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-white transition-colors group-hover:bg-emerald-700">
+                    Tembelea duka · Bidhaa zote
+                  </span>
+                </span>
+              </button>
+            </section>
 
             {galleryImages.length > 0 && (
               <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -467,32 +523,31 @@ export default function App() {
         )}
       </main>
 
-      {/* 6. MagazineSpare Editorial Footer */}
-      <Footer
-        posts={posts}
-        onSelectPost={handleSelectPost}
-        onSelectCategory={() => {}}
-        onNavigate={handleNavigate}
-        onOpenSubscribe={() => setIsSubscribeOpen(true)}
-      />
-
-      {/* 7. Interactive Modals */}
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        posts={posts}
-        onSelectPost={handleSelectPost}
-      />
-
-      <SubscribeModal
-        isOpen={isSubscribeOpen}
-        onClose={() => setIsSubscribeOpen(false)}
-      />
-
-      <AdInfoModal
-        isOpen={isAdInfoOpen}
-        onClose={() => setIsAdInfoOpen(false)}
-      />
+      {currentView !== 'admin' && (
+        <>
+          <Footer
+            posts={posts}
+            onSelectPost={handleSelectPost}
+            onSelectCategory={() => {}}
+            onNavigate={handleNavigate}
+            onOpenSubscribe={() => setIsSubscribeOpen(true)}
+          />
+          <SearchModal
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            posts={posts}
+            onSelectPost={handleSelectPost}
+          />
+          <SubscribeModal
+            isOpen={isSubscribeOpen}
+            onClose={() => setIsSubscribeOpen(false)}
+          />
+          <AdInfoModal
+            isOpen={isAdInfoOpen}
+            onClose={() => setIsAdInfoOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 }

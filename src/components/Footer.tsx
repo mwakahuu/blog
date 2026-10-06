@@ -26,13 +26,13 @@ export const Footer: React.FC<FooterProps> = ({
       {/* Simplified Footer Main Content */}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
-          {/* Column 1: About MagazineSpare */}
+          {/* Column 1: About Chombezo */}
           <div className="space-y-4">
             <h3 className="text-2xl font-extrabold text-white font-condensed tracking-tight">
-              MagazineSpare
+              CHOMBEZO
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              MagazineSpare is a high-performance publishing portal specifically engineered for news, digital magazines, video broadcasts, and photojournalism.
+              CHOMBEZO ni jukwaa la habari, burudani, video, picha na simulizi mbalimbali.
             </p>
             <div className="pt-1">
               <button
@@ -85,7 +85,7 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
             <div className="pt-1">
               <a
-                href="https://wa.me/255623709042?text=Habari,%20nahitaji%20mawasiliano%20na%20MagazineSpare"
+                href="https://wa.me/255623709042?text=Habari,%20nahitaji%20mawasiliano%20na%20CHOMBEZO"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-xs transition-colors"
@@ -101,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({
       <div className="bg-[#070a10] border-t border-slate-800/80 py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-400">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div>
-            <span>MagazineSpare © 2026. All rights reserved. Powered by AF themes.</span>
+            <span>CHOMBEZO © 2026. Haki zote zimehifadhiwa.</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -110,13 +110,6 @@ export const Footer: React.FC<FooterProps> = ({
               className="hover:text-slate-200 transition-colors cursor-pointer"
             >
               Contact Desk
-            </button>
-            <span>·</span>
-            <button
-              onClick={() => onNavigate('admin')}
-              className="hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              Admin
             </button>
             <span>·</span>
             <button

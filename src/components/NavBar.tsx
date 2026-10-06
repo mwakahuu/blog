@@ -91,17 +91,6 @@ export const NavBar: React.FC<NavBarProps> = ({
               Gallery
             </button>
 
-            {/* Admin Panel */}
-            <button
-              onClick={() => onNavigate('admin')}
-              className={`px-4 py-3.5 flex items-center gap-1.5 transition-colors cursor-pointer ${
-                currentView === 'admin' ? 'bg-[#b91c1c] text-white' : 'hover:bg-red-700 text-white'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>Admin Panel</span>
-            </button>
-
             {/* Contact */}
             <button
               onClick={() => onNavigate('contact')}
@@ -191,16 +180,6 @@ export const NavBar: React.FC<NavBarProps> = ({
             className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
           >
             Photo Gallery
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('admin');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer flex items-center justify-between"
-          >
-            <span>Admin Panel</span>
-            <span className="text-[10px] bg-white text-red-600 px-1.5 py-0.5 rounded font-bold">MANAGE</span>
           </button>
           <button
             onClick={() => {

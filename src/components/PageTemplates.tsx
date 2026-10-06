@@ -128,24 +128,22 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
         <div className="bg-white p-6 sm:p-10 border border-slate-200 shadow-xs mb-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
             <div className="w-24 h-24 rounded-full bg-red-600 text-white flex items-center justify-center font-black text-3xl shadow-md shrink-0">
-              AF
+              A
             </div>
             <div className="flex-1 text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-condensed">
-                  AF themes
+                  admin
                 </h1>
                 <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 uppercase tracking-wider rounded-xs">
                   Theme Author & Editorial Staff
                 </span>
               </div>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed max-w-3xl">
-                AF themes creates high-performance WordPress themes and Gutenberg block systems specifically engineered for news portals, online magazines, and niche blogs. Author of MagazineSpare and NewSpare child themes.
+                Admin husimamia maudhui na taarifa zinazochapishwa kwenye CHOMBEZO.
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-semibold text-slate-600">
-                <span>📍 Official AF themes HQ</span>
-                <span>·</span>
-                <span>🌐 <a href="https://afthemes.com/products/magazinespare/" target="_blank" rel="noreferrer" className="text-red-600 hover:underline">afthemes.com</a></span>
+                <span>Wasimamizi wa CHOMBEZO</span>
                 <span>·</span>
                 <span>📰 {posts.length} Published Articles</span>
               </div>
@@ -156,7 +154,7 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 pb-2 mb-6 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-16 after:h-[2px] after:bg-red-600 font-condensed">
-              Articles by AF themes
+              Articles by admin
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {posts.map((post) => (
@@ -391,7 +389,7 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
 
               {ticketSubmitted ? (
                 <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs rounded">
-                  ✓ Ticket submitted! Our AF themes technical team will respond to your inquiry within 24 hours.
+                  ✓ Ticket submitted! Admin will respond to your inquiry within 24 hours.
                 </div>
               ) : (
                 <form
@@ -522,15 +520,15 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
             Ready to Build Your News Portal?
           </h2>
           <p className="text-xs text-slate-600 mb-6">
-            Explore documentation and download starter themes directly from the official AF themes catalog.
+            Explore documentation and download starter themes from the catalog.
           </p>
           <a
-            href="https://afthemes.com/products/magazinespare/"
+            href="https://wa.me/255623709042?text=Habari,%20nahitaji%20msaada%20wa%20CHOMBEZO"
             target="_blank"
             rel="noreferrer"
             className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider px-6 py-3 transition-colors shadow-sm"
           >
-            Explore MagazineSpare on afthemes.com →
+            Wasiliana na admin kuhusu CHOMBEZO
           </a>
         </div>
       </div>
@@ -541,46 +539,74 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
   if (template === 'contact') {
     return (
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white p-8 border border-slate-200 shadow-xs mb-8">
-          <div className="text-xs font-bold text-red-600 uppercase tracking-widest font-condensed">
-            Get in Touch
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-condensed mt-1 mb-2">
-            Need a Website?
+        <div className="max-w-4xl mx-auto bg-white p-6 sm:p-10 border border-slate-200 shadow-xs">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-condensed mt-1 mb-4">
+            Unahitaji Website?
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
-            I build professional websites for businesses, creators, and organizations. Contact me on WhatsApp to discuss your website and get a quote.
+          <p className="text-base sm:text-lg font-semibold text-slate-800 leading-relaxed">
+            Unataka kuuza zaidi, kutangaza biashara yako au kujenga uwepo wako mtandaoni?
           </p>
-        </div>
+          <p className="text-sm sm:text-base text-slate-600 mt-3 leading-relaxed">
+            Website inaweza kusaidia biashara yako kufikia wateja wengi zaidi na kuwapa taarifa muhimu wakati wowote. Tunatengeneza website za kisasa, za kitaalamu na zinazolenga mahitaji ya biashara yako—kuanzia kupanga muundo na maudhui hadi kuweka huduma zako mtandaoni.
+          </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 bg-white p-8 border border-slate-200 shadow-xs">
-            <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 pb-2 mb-6 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-16 after:h-[2px] after:bg-red-600 font-condensed">
-              Let&apos;s Build Your Website
+          <section className="mt-8">
+            <h2 className="text-xl font-bold text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 font-condensed">
+              Suluhisho Tunazoweza Kukutengenezea
             </h2>
-            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-              Tell me what kind of website you need, what it should do, and when you need it. I&apos;ll get back to you on WhatsApp to discuss the details and pricing.
+            <ul className="space-y-4">
+              <li>
+                <h3 className="font-bold text-slate-900">Uuzaji wa bidhaa na huduma</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Onyesha bidhaa au huduma zako kwa mpangilio na uwasaidie wateja kupata taarifa na kuwasiliana nawe kwa urahisi.
+                </p>
+              </li>
+              <li>
+                <h3 className="font-bold text-slate-900">Duka la mtandaoni</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Wateja waweze kuvinjari bidhaa, kuona maelezo na bei, na kuwasilisha oda kupitia njia zinazokufaa.
+                </p>
+              </li>
+              <li>
+                <h3 className="font-bold text-slate-900">Video na maudhui ya kulipia</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Panga maudhui yako ya kidijitali na toa ufikiaji kwa wateja kulingana na mfumo wa biashara yako.
+                </p>
+              </li>
+              <li>
+                <h3 className="font-bold text-slate-900">Tovuti ya kutambulisha biashara na chapa yako</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Wasilisha huduma, ofa, taarifa na utambulisho wa biashara yako kwenye sehemu moja inayopatikana muda wote.
+                </p>
+              </li>
+              <li>
+                <h3 className="font-bold text-slate-900">Uwepo mpana mtandaoni</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Wasaidie wateja wapya kukupata na kujifunza kuhusu biashara yako kupitia simu au kompyuta, popote walipo.
+                </p>
+              </li>
+            </ul>
+          </section>
+
+          <section className="mt-8 border-t border-slate-200 pt-6">
+            <h2 className="text-xl font-bold text-slate-900 font-condensed">
+              Tuanzishe Website Yako
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 mt-2 leading-relaxed">
+              Tueleze biashara yako inafanya nini, unawalenga wateja gani na ungependa website ikusaidie kufanikisha nini. Tutajadili mahitaji, muundo unaofaa na gharama kabla ya kuanza kazi.
             </p>
-            <p className="mt-6 text-lg font-bold text-slate-900">WhatsApp: 0623709042</p>
+            <p className="mt-5 text-base font-bold text-slate-900">
+              WhatsApp: 0623709042
+            </p>
             <a
-              href={`https://wa.me/255623709042?text=${encodeURIComponent('Hi, I need a website. Can we discuss the details and pricing?')}`}
+              href={`https://wa.me/255623709042?text=${encodeURIComponent('Habari, ningependa kujadili website kwa ajili ya biashara yangu. Biashara yangu ni:')}`}
               target="_blank"
               rel="noreferrer"
-              className="mt-5 inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm uppercase tracking-wider px-6 py-3 transition-colors"
+              className="mt-4 inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm tracking-wide px-6 py-3 transition-colors"
             >
-              Message me on WhatsApp
+              Wasiliana Nami WhatsApp
             </a>
-          </div>
-
-          <div className="lg:col-span-4">
-            <Sidebar
-              posts={posts}
-              onSelectPost={onSelectPost}
-              onSelectCategory={onSelectCategory}
-              onSearch={onSearch}
-              onOpenSubscribe={onOpenSubscribe}
-            />
-          </div>
+          </section>
         </div>
       </div>
     );

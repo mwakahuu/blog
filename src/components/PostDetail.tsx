@@ -81,7 +81,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-y border-slate-100 text-xs text-slate-500 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-xs uppercase">
-            AF
+            A
           </div>
           <div>
             <div className="font-bold text-slate-900">{post.author}</div>
@@ -143,7 +143,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
           <blockquote className="my-8 border-l-4 border-red-600 bg-red-50/40 p-5 italic text-slate-800 font-serif text-lg sm:text-xl leading-relaxed">
             "{post.pullQuote}"
             <cite className="block text-xs font-sans not-italic text-slate-500 mt-2 uppercase tracking-wider font-semibold">
-              — MagazineSpare Editorial Review
+              — CHOMBEZO
             </cite>
           </blockquote>
         )}
@@ -206,7 +206,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            AF themes specializes in modern WordPress Full Site Editing (FSE) child themes, Gutenberg block systems, and ultra-fast publishing architectures designed for magazines, broadcasters, and professional bloggers.
+            Admin husimamia uchapishaji wa maudhui kwenye CHOMBEZO.
           </p>
         </div>
       </div>

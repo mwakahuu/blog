@@ -45,11 +45,8 @@ export const ArticlesPage: React.FC<ArticlesPageProps> = ({
       <div className="bg-white p-6 sm:p-10 border border-slate-200 shadow-xs mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-condensed">
-            All Articles & Dispatches
+            Simulizi na ELimu
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
-            Browse our complete catalog of investigative reports, technology analysis, cultural essays, and community sports journalism.
-          </p>
         </div>
 
         {/* Search in Articles Input */}

@@ -71,7 +71,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const [articleVideoUrl, setArticleVideoUrl] = useState('');
   const [articleExcerpt, setArticleExcerpt] = useState('');
   const [articleContent, setArticleContent] = useState('');
-  const [articleAuthor, setArticleAuthor] = useState('AF themes');
+  const [articleAuthor, setArticleAuthor] = useState('admin');
   const [articlePullQuote, setArticlePullQuote] = useState('');
   const [articleSuccessMsg, setArticleSuccessMsg] = useState('');
 
@@ -161,7 +161,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           videoUrl: articleVideoUrl.trim() || undefined,
           excerpt: articleExcerpt.trim() || paragraphs[0].slice(0, 160) + '...',
           content: paragraphs,
-          author: articleAuthor.trim() || 'AF themes',
+          author: articleAuthor.trim() || 'admin',
           pullQuote: articlePullQuote.trim() || undefined,
         };
         await onUpdatePost(updated);
@@ -173,7 +173,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         title: articleTitle.trim(),
         slug: articleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         categories: [],
-        author: articleAuthor.trim() || 'AF themes',
+        author: articleAuthor.trim() || 'admin',
         date: new Date().toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -240,7 +240,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         uploadDate: 'Just now',
         thumbnail: videoThumbnailLink.trim(),
         videoUrl: videoStreamUrl.trim() || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4',
-        channelName: 'MagazineSpare Video',
+        channelName: 'CHOMBEZO Video',
         description: videoDescription.trim(),
         likes: '1.2K',
       };
@@ -459,7 +459,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                     type="text"
                     value={articleAuthor}
                     onChange={(e) => setArticleAuthor(e.target.value)}
-                    placeholder="AF themes"
+                    placeholder="admin"
                     className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
                   />
                 </div>

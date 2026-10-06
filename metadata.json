@@ -1,6 +1,6 @@
 {
-  "name": "MagazineSpare - News & Magazine Theme",
-  "description": "High-performance, lightweight WordPress Full Site Editing (FSE) news portal and magazine theme rebuilt in React.",
+  "name": "CHOMBEZO",
+  "description": "CHOMBEZO — habari, burudani, video, picha na simulizi mbalimbali.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -15,10 +15,10 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome, onAdClick }) => 
           className="cursor-pointer group select-none text-center lg:text-left shrink-0"
         >
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white group-hover:text-red-500 transition-colors font-condensed">
-            MagazineSpare
+            CHOMBEZO
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 font-medium tracking-wide mt-0.5">
-            Full Site Editing Theme for News/Magazine
+            Habari · Burudani · Video · Picha
           </p>
         </div>
 

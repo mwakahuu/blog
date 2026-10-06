@@ -59,7 +59,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         <div className="max-h-96 overflow-y-auto p-4 divide-y divide-slate-100">
           {query.trim() === '' ? (
             <div className="py-8 text-center text-xs text-slate-400">
-              Type keywords above to search MagazineSpare archive.
+              Tafuta kwenye kumbukumbu za CHOMBEZO.
             </div>
           ) : results.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-500">
@@ -139,7 +139,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
 
         <div className="text-center">
           <div className="inline-block bg-red-100 text-red-600 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-xs mb-2">
-            MagazineSpare Daily
+            CHOMBEZO
           </div>
           <h3 className="text-2xl font-extrabold text-slate-900 font-condensed">
             Subscribe to Newsletter
@@ -237,7 +237,7 @@ export const WatchModal: React.FC<WatchModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
             <span className="text-xs font-bold uppercase tracking-wider text-white font-condensed">
-              MagazineSpare Live Video Player
+              CHOMBEZO Live Video Player
             </span>
           </div>
           <button
@@ -352,7 +352,7 @@ export const AdInfoModal: React.FC<AdInfoModalProps> = ({ isOpen, onClose }) => 
           Leaderboard Sponsor Placement · 930x110
         </h3>
         <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-          MagazineSpare provides premium, high-visibility header banner ad inventory positioned directly beneath the top navigation for maximum reader engagement.
+          CHOMBEZO inatoa nafasi za matangazo kwenye bango lililo chini ya menyu kuu ya tovuti.
         </p>
 
         <div className="grid grid-cols-2 gap-3 my-4 text-xs">

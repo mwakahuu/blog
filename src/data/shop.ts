@@ -1,121 +1,96 @@
 import { Product } from '../types';
 
-export const PRODUCTS: Product[] = [
-  {
-    id: 'magazine-print-annual-vol1',
-    title: "MagazineSpare Print Annual Vol. 1 - Collector's Edition",
-    category: 'Print Editions',
-    price: 85000,
-    originalPrice: 105000,
-    rating: 4.9,
-    reviewsCount: 128,
-    description: "Luxurious 240-page hardcover publication printed on 180gsm archival paper. Featuring deep-dive investigative journalism, photographic essays, and architectural monographs.",
-    image: '/src/assets/images/magazine_print_issue_1791046659621.jpg',
-    inStock: true,
-    features: [
-      "Hardcover Linen Binding with Foil Debossing",
-      "FSC Certified 180gsm Archival Matte Paper",
-      "Exclusive Paris & EV Global Essays",
-      "Individually Numbered Limited Run"
-    ]
-  },
-  {
-    id: 'digital-pro-membership',
-    title: 'Digital Pro Annual Membership (Unlimited All-Access)',
-    category: 'Subscriptions',
-    price: 120000,
-    originalPrice: 175000,
-    rating: 5.0,
-    reviewsCount: 412,
-    description: "Unlimited digital access across all desktop, tablet, and mobile platforms. Enjoy ad-free reading, audio article narrations, and exclusive subscriber dispatch briefings.",
-    image: '/src/assets/images/tablet_streaming_apps_1791045826090.jpg',
-    inStock: true,
-    features: [
-      "100% Ad-Free Reading Experience",
-      "High-Res PDF Issues & Offline Mode",
-      "Weekly Editorial Dispatches & Briefings",
-      "Priority Invitations to Live Video Salons"
-    ]
-  },
-  {
-    id: 'pro-photojournalist-prime-lens',
-    title: 'Photojournalist Prime Lens 50mm f/1.4 Pro Edition',
-    category: 'Gear & Optics',
-    price: 1250000,
-    originalPrice: 1400000,
-    rating: 4.8,
-    reviewsCount: 87,
-    description: "Ultra-sharp professional prime lens with nano-crystal multicoating, silent ultrasonic autofocus motor, and rugged weather-sealed magnesium chassis.",
-    image: '/src/assets/images/camera_lens_photo_1791045838333.jpg',
-    inStock: true,
-    features: [
-      "Fast f/1.4 Maximum Low-Light Aperture",
-      "Circular 9-Blade Diaphragm for Creamy Bokeh",
-      "Weather-Sealed Magnesium Mount",
-      "Nano Anti-Reflective Fluorine Coating"
-    ]
-  },
-  {
-    id: 'field-tech-modular-backpack',
-    title: 'Field & Tech Modular Camera Backpack 25L',
-    category: 'Field Gear',
-    price: 320000,
-    originalPrice: 395000,
-    rating: 4.9,
-    reviewsCount: 215,
-    description: "Waterproof Cordura tactical daypack with dedicated padded laptop compartment (up to 16\"), customizable camera gear dividers, and hidden passport security pocket.",
-    image: '/src/assets/images/tech_travel_backpack_1791046671304.jpg',
-    inStock: true,
-    features: [
-      "Weatherproof 1000D Ballistic Cordura",
-      "Padded Laptop (16\") & Tablet Sleeves",
-      "Fidlock Magnetic Fasteners & Sternum Strap",
-      "Side Access Quick-Draw Camera Hatch"
-    ]
-  },
-  {
-    id: 'autonomous-ai-edge-kit',
-    title: 'Autonomous AI Edge Developer Neural Module',
-    category: 'Tech & Hardware',
-    price: 495000,
-    originalPrice: 575000,
-    rating: 4.7,
-    reviewsCount: 64,
-    description: "Compact edge neural computing development module with PCIe 4.0 expansion, Tensor acceleration, and pre-flashed machine learning benchmark workbench.",
-    image: '/src/assets/images/ai_circuit_chip_1791045763363.jpg',
-    inStock: true,
-    features: [
-      "Low-Power 40 TOPS Neural Processor",
-      "PCIe 4.0 & Dual USB-C 3.2 Gen 2",
-      "Pre-Installed Linux Model Workbench",
-      "Anodized Aluminum Passive Heatsink"
-    ]
-  },
-  {
-    id: 'historic-capitals-anthology',
-    title: 'Historic Capitals: A Journey Through Heritage & Architecture',
-    category: 'Print Editions',
-    price: 70000,
-    originalPrice: 90000,
-    rating: 4.9,
-    reviewsCount: 93,
-    description: "A comprehensive photographic and architectural journey through Paris, Rome, Kyoto, and Istanbul with local culinary secrets and walking itineraries.",
-    image: '/src/assets/images/eiffel_tower_night_1791045748763.jpg',
-    inStock: true,
-    features: [
-      "Full-Color Panoramic Gatefold Plates",
-      "Hand-Drawn Neighborhood Walking Maps",
-      "Culinary Producer & Artisan Directories",
-      "Smyth-Sewn Binding with Ribbon Bookmark"
-    ]
-  }
-];
+export type ShopProduct = Product & {
+  priceLabel: string;
+  images: string[];
+  videoUrl?: string;
+};
 
-export const SHOP_CATEGORIES = [
-  'All',
-  'Print Editions',
-  'Subscriptions',
-  'Gear & Optics',
-  'Field Gear',
-  'Tech & Hardware'
+export const PRODUCTS: ShopProduct[] = [
+  {
+    id: 'black-dildo-kiboko-ya-nyege',
+    title: 'Black Dildo - Kiboko ya Nyege',
+    category: 'Adult Toys',
+    price: 90000,
+    priceLabel: 'TSh 90,000 - 170,000',
+    rating: 0,
+    reviewsCount: 0,
+    description: 'Dildo laini ya silicone inayopatikana kwa ukubwa wa inchi 5 hadi 9. Chagua toleo la kawaida au la umeme kulingana na upendeleo wako.',
+    image: 'https://i.ibb.co/kFPy9TG/Whats-App-Image-2026-04-03-at-20-53-13.jpg',
+    images: [
+      'https://i.ibb.co/kFPy9TG/Whats-App-Image-2026-04-03-at-20-53-13.jpg',
+      'https://i.ibb.co/ymdbMhTv/images-1.jpg',
+      'https://i.ibb.co/HD1dccLK/Whats-App-Image-2026-04-03-at-20-53-14.jpg',
+      'https://i.ibb.co/hR6d2s1d/eldorado-colours-rainbow-pride-dildo-5.webp',
+      'https://www.thebadpeach.com/cdn/shop/files/DN-1075.gif',
+    ],
+    videoUrl: 'https://res.cloudinary.com/dhqfbdotw/video/upload/q_auto/f_auto/v1775244805/WhatsApp_Video_2026-04-03_at_20.53.03_zrwe1i.mp4',
+    inStock: true,
+    features: ['Sizes: 5 to 9 inches', 'Available electric and regular'],
+  },
+  {
+    id: 'vibrator-all-sizes-colors',
+    title: 'Vibrator - Ukubwa na Rangi Mbalimbali',
+    category: 'Adult Toys',
+    price: 60000,
+    priceLabel: 'TSh 60,000 - 120,000',
+    rating: 0,
+    reviewsCount: 0,
+    description: 'Vibrator tulivu yenye mipangilio ya mtetemo na mzunguko kwa wakati mmoja. Inafaa kwa matumizi binafsi au massage; chagua ukubwa na rangi unayopendelea.',
+    image: 'https://i.ibb.co/qLhQryVX/Whats-App-Image-2026-04-03-at-20-53-12.jpg',
+    images: [
+      'https://i.ibb.co/qLhQryVX/Whats-App-Image-2026-04-03-at-20-53-12.jpg',
+      'https://www.ricky.com/cdn/shop/articles/wand-vibrator.gif?v=1644854846',
+      'https://image.kazanexpress.ru/cmhtk69ivp4onrggp6q0/t_product_high.jpg',
+      'https://rukminim2.flixcart.com/image/480/640/xif0q/massager/k/h/r/rechargeable-electric-vibrator-massage-for-female-personal-body-original-imagpfmzg2s3vqhs.jpeg',
+      'https://rukminim2.flixcart.com/image/958/958/xif0q/shopsy-massager/t/c/g/vibrate-wand-massager-with-20-magic-vibration-modes-quiet-original-imagfccheh2xyhje.jpeg',
+    ],
+    videoUrl: 'https://res.cloudinary.com/dhqfbdotw/video/upload/q_auto/f_auto/v1775244745/VID-20260329-WA0050_liz0gz.mp4',
+    inStock: true,
+    features: [],
+  },
+  {
+    id: 'rose-utamu-mwisho-wa-matatizo',
+    title: 'Rose Utamu - Mwisho wa Matatizo',
+    category: 'Adult Toys',
+    price: 170000,
+    priceLabel: 'TSh 170,000',
+    rating: 0,
+    reviewsCount: 0,
+    description: 'Kifaa cha matumizi binafsi chenye umbo la waridi na sehemu ya silicone yenye mtetemo. Muundo wake umeundwa kwa ajili ya kutoa chaguo tofauti za matumizi.',
+    image: 'https://i.ibb.co/tyyXtx0/images-Copy.jpg',
+    images: [
+      'https://i.ibb.co/tyyXtx0/images-Copy.jpg',
+      'https://eqomcdn.com/content/photos/products/teazers/75489/1702380058.tea060_7.jpg',
+      'https://rosezoe.com/cdn/shop/files/Mouth-Shape-Rose-Toy-With-Dildo-1.gif',
+      'https://www.adultscare.com/theme/images/Screenshot_92.png',
+    ],
+    videoUrl: 'https://res.cloudinary.com/dhqfbdotw/video/upload/q_auto/f_auto/v1775244878/VID-20260329-WA0051_sc0e6c.mp4',
+    inStock: true,
+    features: [],
+  },
+  {
+    id: 'vipipi-utamu',
+    title: 'Vipipi Utamu',
+    category: 'Adult Toys',
+    price: 5000,
+    priceLabel: 'TSh 5,000 - 38,000',
+    rating: 0,
+    reviewsCount: 0,
+    description: 'Vipipi vya ladha vinavyopatikana kwa vifungashio vya ukubwa tofauti. Bei hutegemea kiasi kilichochaguliwa; angalia orodha ya bei hapa chini.\n\nTahadhari: bidhaa hii si njia ya kuzuia mimba. Soma maelekezo ya kifungashio kabla ya matumizi.',
+    image: 'https://i.ibb.co/YFCHRpTp/Whats-App-Image-2026-04-03-at-22-08-29-1.jpg',
+    images: [
+      'https://i.ibb.co/YFCHRpTp/Whats-App-Image-2026-04-03-at-22-08-29-1.jpg',
+      'https://i.ibb.co/vCd2Mks5/Whats-App-Image-2026-04-03-at-22-08-29.jpg',
+      'https://i.ibb.co/prs7yFGp/Whats-App-Image-2026-04-03-at-22-18-14.jpg',
+    ],
+    inStock: true,
+    features: [
+      'Vipipi 10 = TSh 5,000',
+      'Vipipi 50 = TSh 8,000',
+      'Vipipi 100 = TSh 15,000',
+      'Vipipi 200 = TSh 25,000',
+      'Kilo 1 = TSh 38,000',
+    ],
+  },
 ];
