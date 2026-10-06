@@ -34,13 +34,10 @@ export const VideosPage: React.FC<VideosPageProps> = ({ videos = VIDEOS }) => {
           </p>
         </div>
 
-        <div className="text-xs font-mono bg-slate-900 text-slate-200 px-4 py-2 rounded-xs self-start md:self-auto">
-          Powered by Video.js React Engine
-        </div>
       </div>
 
       {/* Main Web Video.js Player Component */}
-      <div className="bg-black text-white rounded-xs overflow-hidden shadow-2xl mb-8 border border-slate-800">
+      <div className="max-w-4xl mx-auto bg-black text-white rounded-xs overflow-hidden shadow-2xl mb-8 border border-slate-800">
         <div className="w-full bg-black" style={{ aspectRatio: '16 / 9' }}>
           <HlsVideoPlayer
             key={selectedVideo.id}

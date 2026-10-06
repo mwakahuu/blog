@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Post, Comment } from '../types';
 import { BannerAd } from './BannerAds';
+import { ArticleVideo } from './ArticleVideo';
 
 interface PostDetailProps {
   post: Post;
@@ -122,6 +123,20 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             {paragraph}
           </p>
         ))}
+
+        {post.additionalImages?.map((imageUrl, index) => (
+          <figure key={`${imageUrl}-${index}`} className="my-8">
+            <img
+              src={imageUrl}
+              alt={`${post.title} - image ${index + 2}`}
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              className="w-full rounded-xs object-cover"
+            />
+          </figure>
+        ))}
+
+        {post.videoUrl && <ArticleVideo url={post.videoUrl} title={post.title} />}
 
         {/* Pull Quote */}
         {post.pullQuote && (

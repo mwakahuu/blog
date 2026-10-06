@@ -5,20 +5,32 @@ interface AdminPanelPageProps {
   posts: Post[];
   videos: VideoItem[];
   galleryImages: GalleryImage[];
-  onAddPost: (post: Post) => void;
-  onUpdatePost: (post: Post) => void;
-  onDeletePost: (postId: string) => void;
-  onAddVideo: (video: VideoItem) => void;
-  onUpdateVideo: (video: VideoItem) => void;
-  onDeleteVideo: (videoId: string) => void;
-  onAddGalleryImage: (image: GalleryImage) => void;
-  onDeleteGalleryImage: (imageId: string) => void;
+  requiresAdminAuth: boolean;
+  isAdmin: boolean;
+  authLoading: boolean;
+  contentError: string;
+  onSignIn: (email: string, password: string) => Promise<void>;
+  onSignOut: () => void | Promise<unknown>;
+  onAddPost: (post: Post) => Promise<void>;
+  onUpdatePost: (post: Post) => Promise<void>;
+  onDeletePost: (postId: string) => Promise<void>;
+  onAddVideo: (video: VideoItem) => Promise<void>;
+  onUpdateVideo: (video: VideoItem) => Promise<void>;
+  onDeleteVideo: (videoId: string) => Promise<void>;
+  onAddGalleryImage: (image: GalleryImage) => Promise<void>;
+  onDeleteGalleryImage: (imageId: string) => Promise<void>;
 }
 
 export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   posts,
   videos,
   galleryImages,
+  requiresAdminAuth,
+  isAdmin,
+  authLoading,
+  contentError,
+  onSignIn,
+  onSignOut,
   onAddPost,
   onUpdatePost,
   onDeletePost,
@@ -28,6 +40,26 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   onAddGalleryImage,
   onDeleteGalleryImage,
 }) => {
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authPending, setAuthPending] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  const handleSignIn = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAuthPending(true);
+    setAuthError('');
+    try {
+      await onSignIn(adminEmail.trim(), adminPassword);
+      setAdminPassword('');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Sign-in failed.');
+    } finally {
+      setAuthPending(false);
+    }
+  };
+
   // Destination selection: 'articles' | 'videos' | 'gallery'
   const [postDestination, setPostDestination] = useState<'articles' | 'videos' | 'gallery'>('articles');
 
@@ -35,6 +67,8 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [articleTitle, setArticleTitle] = useState('');
   const [articleImageLink, setArticleImageLink] = useState('');
+  const [articleAdditionalImageLinks, setArticleAdditionalImageLinks] = useState('');
+  const [articleVideoUrl, setArticleVideoUrl] = useState('');
   const [articleExcerpt, setArticleExcerpt] = useState('');
   const [articleContent, setArticleContent] = useState('');
   const [articleAuthor, setArticleAuthor] = useState('AF themes');
@@ -54,9 +88,57 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const [galleryImageLink, setGalleryImageLink] = useState('');
   const [gallerySuccessMsg, setGallerySuccessMsg] = useState('');
 
+  if (requiresAdminAuth && !isAdmin) {
+    return (
+      <section className="max-w-lg mx-auto px-4 py-16">
+        <div className="border border-slate-200 bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-900 font-condensed">Admin sign in</h1>
+          <p className="mt-2 text-sm text-slate-600">Sign in with the admin username and password configured in the server&apos;s .env file.</p>
+          {authError && <p role="alert" className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-800">{authError}</p>}
+          {authLoading ? (
+            <p className="mt-6 text-sm text-slate-500">Checking your session...</p>
+          ) : (
+            <form onSubmit={handleSignIn} className="mt-6 space-y-4">
+              <label className="block text-sm font-semibold text-slate-700">
+                Username
+                <input
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={adminEmail}
+                  onChange={(event) => setAdminEmail(event.target.value)}
+                  className="mt-1 w-full border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={adminPassword}
+                  onChange={(event) => setAdminPassword(event.target.value)}
+                  className="mt-1 w-full border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={authPending}
+                className="w-full bg-red-600 px-4 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {authPending ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   // Handle Article Submit
-  const handleSaveArticle = (e: React.FormEvent) => {
+  const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionError('');
     if (!articleTitle.trim() || !articleImageLink.trim() || !articleContent.trim()) {
       alert('Please fill out Title, Image Link URL, and Content.');
       return;
@@ -67,6 +149,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       .map((p) => p.trim())
       .filter(Boolean);
 
+    try {
     if (editingPostId) {
       const existing = posts.find((p) => p.id === editingPostId);
       if (existing) {
@@ -74,12 +157,14 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           ...existing,
           title: articleTitle.trim(),
           image: articleImageLink.trim(),
+          additionalImages: articleAdditionalImageLinks.split('\n').map((url) => url.trim()).filter(Boolean),
+          videoUrl: articleVideoUrl.trim() || undefined,
           excerpt: articleExcerpt.trim() || paragraphs[0].slice(0, 160) + '...',
           content: paragraphs,
           author: articleAuthor.trim() || 'AF themes',
           pullQuote: articlePullQuote.trim() || undefined,
         };
-        onUpdatePost(updated);
+        await onUpdatePost(updated);
         setArticleSuccessMsg('✓ Article updated successfully!');
       }
     } else {
@@ -96,33 +181,42 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         }),
         readTime: '6 min read',
         image: articleImageLink.trim(),
+        additionalImages: articleAdditionalImageLinks.split('\n').map((url) => url.trim()).filter(Boolean),
+        videoUrl: articleVideoUrl.trim() || undefined,
         excerpt: articleExcerpt.trim() || paragraphs[0].slice(0, 160) + '...',
         content: paragraphs,
         pullQuote: articlePullQuote.trim() || undefined,
         views: 1,
         comments: [],
       };
-      onAddPost(newPost);
+      await onAddPost(newPost);
       setArticleSuccessMsg('✓ Long-form story published live to Articles page!');
     }
 
     setEditingPostId(null);
     setArticleTitle('');
     setArticleImageLink('');
+    setArticleAdditionalImageLinks('');
+    setArticleVideoUrl('');
     setArticleExcerpt('');
     setArticleContent('');
     setArticlePullQuote('');
     setTimeout(() => setArticleSuccessMsg(''), 4000);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to save article.');
+    }
   };
 
   // Handle Video Submit
-  const handleSaveVideo = (e: React.FormEvent) => {
+  const handleSaveVideo = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionError('');
     if (!videoTitle.trim() || !videoThumbnailLink.trim() || !videoDescription.trim()) {
       alert('Please fill out Title, Video Thumbnail Link, and Description.');
       return;
     }
 
+    try {
     if (editingVideoId) {
       const existing = videos.find((v) => v.id === editingVideoId);
       if (existing) {
@@ -134,7 +228,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           duration: videoDuration.trim() || '12:00',
           description: videoDescription.trim(),
         };
-        onUpdateVideo(updated);
+        await onUpdateVideo(updated);
         setVideoSuccessMsg('✓ Video updated successfully!');
       }
     } else {
@@ -150,7 +244,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         description: videoDescription.trim(),
         likes: '1.2K',
       };
-      onAddVideo(newVideo);
+      await onAddVideo(newVideo);
       setVideoSuccessMsg('✓ New video published live to Videos page!');
     }
 
@@ -160,11 +254,15 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
     setVideoDuration('');
     setVideoDescription('');
     setTimeout(() => setVideoSuccessMsg(''), 4000);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to save video.');
+    }
   };
 
   // Handle Gallery Image Submit
-  const handleSaveGalleryImage = (e: React.FormEvent) => {
+  const handleSaveGalleryImage = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActionError('');
     if (!galleryImageLink.trim()) {
       alert('Please enter an image link URL.');
       return;
@@ -175,7 +273,12 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       url: galleryImageLink.trim(),
     };
 
-    onAddGalleryImage(newImg);
+    try {
+      await onAddGalleryImage(newImg);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to save gallery image.');
+      return;
+    }
     setGalleryImageLink('');
     setGallerySuccessMsg('✓ New photo added to Gallery page successfully!');
     setTimeout(() => setGallerySuccessMsg(''), 4000);
@@ -206,8 +309,24 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
             <div>Articles: <strong className="text-white">{posts.length}</strong></div>
             <div>Videos: <strong className="text-white">{videos.length}</strong></div>
             <div>Gallery Photos: <strong className="text-white">{galleryImages.length}</strong></div>
+            {requiresAdminAuth && (
+              <button onClick={() => void onSignOut()} className="mt-2 text-emerald-300 underline underline-offset-2">
+                Sign out
+              </button>
+            )}
           </div>
         </div>
+
+        {requiresAdminAuth && contentError && (
+          <div role="alert" className="mt-6 border border-amber-700 bg-amber-950/60 p-4 text-sm text-amber-100">
+            Could not connect to the local content database: {contentError}
+          </div>
+        )}
+        {actionError && (
+          <div role="alert" className="mt-6 border border-red-300 bg-red-50 p-4 text-sm text-red-800">
+            Could not save content: {actionError}
+          </div>
+        )}
 
         {/* Target Destination Switcher */}
         <div className="mt-8 pt-6 border-t border-slate-800 flex flex-wrap items-center gap-3">
@@ -305,6 +424,35 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                    Additional Image Links (Optional)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={articleAdditionalImageLinks}
+                    onChange={(e) => setArticleAdditionalImageLinks(e.target.value)}
+                    placeholder={'https://images.example.com/photo-2.jpg\nhttps://images.example.com/photo-3.jpg'}
+                    className="w-full px-4 py-3 text-sm border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">Add one public image URL per line. The featured image is shown separately.</p>
+                </div>
+                <div>
+                  <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                    Video Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={articleVideoUrl}
+                    onChange={(e) => setArticleVideoUrl(e.target.value)}
+                    placeholder="YouTube, Vimeo, .mp4 or .m3u8 link"
+                    className="w-full px-4 py-3 text-sm border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">The video appears inside the article with playback controls.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
                     Author Byline
                   </label>
                   <input
@@ -372,6 +520,8 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                       setEditingPostId(null);
                       setArticleTitle('');
                       setArticleImageLink('');
+                      setArticleAdditionalImageLinks('');
+                      setArticleVideoUrl('');
                       setArticleExcerpt('');
                       setArticleContent('');
                       setArticlePullQuote('');
@@ -419,6 +569,8 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                             setEditingPostId(post.id);
                             setArticleTitle(post.title);
                             setArticleImageLink(post.image);
+                            setArticleAdditionalImageLinks((post.additionalImages ?? []).join('\n'));
+                            setArticleVideoUrl(post.videoUrl ?? '');
                             setArticleExcerpt(post.excerpt);
                             setArticleContent(post.content.join('\n\n'));
                             setArticleAuthor(post.author);
@@ -432,7 +584,9 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                         <button
                           onClick={() => {
                             if (window.confirm(`Delete: "${post.title}"?`)) {
-                              onDeletePost(post.id);
+                              void onDeletePost(post.id).catch((error: unknown) => {
+                                setActionError(error instanceof Error ? error.message : 'Unable to delete article.');
+                              });
                             }
                           }}
                           className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-xs cursor-pointer"
@@ -615,7 +769,9 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                         <button
                           onClick={() => {
                             if (window.confirm(`Delete: "${vid.title}"?`)) {
-                              onDeleteVideo(vid.id);
+                              void onDeleteVideo(vid.id).catch((error: unknown) => {
+                                setActionError(error instanceof Error ? error.message : 'Unable to delete video.');
+                              });
                             }
                           }}
                           className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-xs cursor-pointer"
@@ -692,7 +848,11 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                   <img src={img.url} alt="" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
                     <button
-                      onClick={() => onDeleteGalleryImage(img.id)}
+                      onClick={() => {
+                        void onDeleteGalleryImage(img.id).catch((error: unknown) => {
+                          setActionError(error instanceof Error ? error.message : 'Unable to delete gallery image.');
+                        });
+                      }}
                       className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase px-3 py-1.5 rounded cursor-pointer"
                     >
                       Delete

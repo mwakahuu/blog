@@ -16,6 +16,8 @@ export interface Post {
   date: string;
   readTime: string;
   image: string;
+  additionalImages?: string[];
+  videoUrl?: string;
   excerpt: string;
   content: string[];
   pullQuote?: string;
@@ -78,7 +80,4 @@ export type ViewMode =
   | 'post'
   | 'category'
   | 'author'
-  | 'docs'
-  | 'support'
   | 'contact';
-

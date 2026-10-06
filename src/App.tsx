@@ -24,47 +24,98 @@ import { AdminPanelPage } from './components/AdminPanelPage';
 import { Footer } from './components/Footer';
 import { BannerAd } from './components/BannerAds';
 import { SearchModal, SubscribeModal, AdInfoModal } from './components/Modals';
+import {
+  fetchAdminSession,
+  fetchContent,
+  importLegacyContent,
+  loginAdmin,
+  logoutAdmin,
+  removeGalleryImage,
+  removePost,
+  removeVideo,
+  saveGalleryImage,
+  savePostComment,
+  savePost,
+  saveVideo,
+  type LegacyContent,
+} from './contentStore';
 
-const STORAGE_KEYS = {
+const LEGACY_STORAGE_KEYS = {
   posts: 'blog_posts',
   videos: 'blog_videos',
-  gallery: 'blog_gallery',
-};
+  galleryImages: 'blog_gallery',
+} as const;
 
-const readStorage = <T,>(key: string, fallback: T): T => {
-  if (typeof window === 'undefined') {
-    return fallback;
-  }
+const readLegacyContent = (): LegacyContent | null => {
+  const stored = {
+    posts: window.localStorage.getItem(LEGACY_STORAGE_KEYS.posts),
+    videos: window.localStorage.getItem(LEGACY_STORAGE_KEYS.videos),
+    galleryImages: window.localStorage.getItem(LEGACY_STORAGE_KEYS.galleryImages),
+  };
+  if (Object.values(stored).every((value) => value === null)) return null;
 
-  try {
-    const storedValue = window.localStorage.getItem(key);
-    if (!storedValue) {
-      return fallback;
-    }
-    return JSON.parse(storedValue) as T;
-  } catch {
-    return fallback;
-  }
+  const parseArray = <T,>(value: string | null, key: string): T[] => {
+    if (value === null) return [];
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) throw new Error(`Stored ${key} data is not a list.`);
+    return parsed as T[];
+  };
+
+  return {
+    posts: parseArray<Post>(stored.posts, 'article'),
+    videos: parseArray<VideoItem>(stored.videos, 'video'),
+    galleryImages: parseArray<GalleryImage>(stored.galleryImages, 'gallery'),
+  };
 };
 
 export default function App() {
-  const [posts, setPosts] = useState<Post[]>(() => readStorage<Post[]>(STORAGE_KEYS.posts, POSTS));
-  const [videos, setVideos] = useState<VideoItem[]>(() => readStorage<VideoItem[]>(STORAGE_KEYS.videos, VIDEOS));
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(() => readStorage<GalleryImage[]>(STORAGE_KEYS.gallery, INITIAL_GALLERY_IMAGES));
+  const [posts, setPosts] = useState<Post[]>(POSTS);
+  const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
   const [currentView, setCurrentView] = useState<ViewMode>('home');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(true);
+  const [contentError, setContentError] = useState('');
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.posts, JSON.stringify(posts));
-  }, [posts]);
+    let active = true;
 
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.videos, JSON.stringify(videos));
-  }, [videos]);
+    fetchContent()
+      .then((content) => {
+        if (!active) return;
+        setPosts(content.posts);
+        setVideos(content.videos);
+        setGalleryImages(content.galleryImages);
+        setContentError('');
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setContentError(error instanceof Error ? error.message : 'Unable to load content from the local database.');
+        }
+      })
+      .finally(() => {
+        if (active) setContentLoading(false);
+      });
 
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.gallery, JSON.stringify(galleryImages));
-  }, [galleryImages]);
+    fetchAdminSession()
+      .then((authenticated) => {
+        if (active) setIsAdmin(authenticated);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setContentError((previous) => previous || (error instanceof Error ? error.message : 'Unable to check admin session.'));
+        }
+      })
+      .finally(() => {
+        if (active) setAuthLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!posts.length) {
@@ -99,66 +150,95 @@ export default function App() {
   };
 
   // Add Comment handler
-  const handleAddComment = (postId: string, newComment: Comment) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((p) => {
-        if (p.id === postId) {
-          const updated = {
-            ...p,
-            comments: [...p.comments, newComment],
-          };
-          if (selectedPost && selectedPost.id === postId) {
-            setSelectedPost(updated);
-          }
-          return updated;
-        }
-        return p;
-      })
-    );
+  const handleAddComment = async (postId: string, newComment: Comment) => {
+    const currentPost = posts.find((post) => post.id === postId);
+    if (!currentPost) return;
+
+    const updatedPost = { ...currentPost, comments: [...currentPost.comments, newComment] };
+    try {
+      await savePostComment(postId, newComment);
+      setPosts((prevPosts) => prevPosts.map((post) => post.id === postId ? updatedPost : post));
+      if (selectedPost?.id === postId) setSelectedPost(updatedPost);
+    } catch (error) {
+      setContentError(error instanceof Error ? error.message : 'Unable to save comment.');
+    }
   };
 
   // Admin content management functions
-  const handleAddPost = (newPost: Post) => {
+  const handleAddPost = async (newPost: Post) => {
+    await savePost(newPost);
     setPosts((prevPosts) => [newPost, ...prevPosts]);
     setSelectedPost(newPost);
   };
 
-  const handleUpdatePost = (updatedPost: Post) => {
-    setPosts(posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)));
+  const handleUpdatePost = async (updatedPost: Post) => {
+    await savePost(updatedPost);
+    setPosts((prevPosts) => prevPosts.map((post) => post.id === updatedPost.id ? updatedPost : post));
     if (selectedPost && selectedPost.id === updatedPost.id) {
       setSelectedPost(updatedPost);
     }
   };
 
-  const handleDeletePost = (postId: string) => {
-    setPosts((prevPosts) => {
-      const nextPosts = prevPosts.filter((p) => p.id !== postId);
-      if (selectedPost && selectedPost.id === postId) {
-        setSelectedPost(nextPosts[0] || null);
-        setCurrentView('home');
-      }
-      return nextPosts;
-    });
+  const handleDeletePost = async (postId: string) => {
+    await removePost(postId);
+    setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+    if (selectedPost?.id === postId) {
+      setSelectedPost(posts.find((post) => post.id !== postId) || null);
+      setCurrentView('home');
+    }
   };
 
-  const handleAddVideo = (newVideo: VideoItem) => {
-    setVideos([newVideo, ...videos]);
+  const handleAddVideo = async (newVideo: VideoItem) => {
+    await saveVideo(newVideo);
+    setVideos((prevVideos) => [newVideo, ...prevVideos]);
   };
 
-  const handleUpdateVideo = (updatedVideo: VideoItem) => {
-    setVideos(videos.map((v) => (v.id === updatedVideo.id ? updatedVideo : v)));
+  const handleUpdateVideo = async (updatedVideo: VideoItem) => {
+    await saveVideo(updatedVideo);
+    setVideos((prevVideos) => prevVideos.map((video) => video.id === updatedVideo.id ? updatedVideo : video));
   };
 
-  const handleDeleteVideo = (videoId: string) => {
-    setVideos(videos.filter((v) => v.id !== videoId));
+  const handleDeleteVideo = async (videoId: string) => {
+    await removeVideo(videoId);
+    setVideos((prevVideos) => prevVideos.filter((video) => video.id !== videoId));
   };
 
-  const handleAddGalleryImage = (image: GalleryImage) => {
-    setGalleryImages([image, ...galleryImages]);
+  const handleAddGalleryImage = async (image: GalleryImage) => {
+    await saveGalleryImage(image);
+    setGalleryImages((prevImages) => [image, ...prevImages]);
   };
 
-  const handleDeleteGalleryImage = (imageId: string) => {
-    setGalleryImages(galleryImages.filter((img) => img.id !== imageId));
+  const handleDeleteGalleryImage = async (imageId: string) => {
+    await removeGalleryImage(imageId);
+    setGalleryImages((prevImages) => prevImages.filter((image) => image.id !== imageId));
+  };
+
+  const handleAdminSignIn = async (email: string, password: string) => {
+    await loginAdmin(email, password);
+    setIsAdmin(true);
+    try {
+      const legacyContent = readLegacyContent();
+      if (!legacyContent) return;
+
+      const migration = await importLegacyContent(legacyContent);
+      if (!migration.imported) return;
+
+      Object.values(LEGACY_STORAGE_KEYS).forEach((key) => window.localStorage.removeItem(key));
+      const content = await fetchContent();
+      setPosts(content.posts);
+      setVideos(content.videos);
+      setGalleryImages(content.galleryImages);
+      setContentError('');
+    } catch (error) {
+      setContentError(error instanceof Error
+        ? `Signed in, but browser-saved content could not be imported: ${error.message}`
+        : 'Signed in, but browser-saved content could not be imported.');
+    }
+  };
+
+  const handleAdminSignOut = async () => {
+    await logoutAdmin();
+    setIsAdmin(false);
   };
 
   return (
@@ -175,7 +255,7 @@ export default function App() {
         onAdClick={() => setIsAdInfoOpen(true)}
       />
 
-      {/* 3. Primary Red Navigation Bar with Home, Articles, Shop, Videos, Gallery, Admin Panel, Docs, Support, Contact */}
+      {/* 3. Primary navigation */}
       <NavBar
         currentView={currentView}
         onNavigate={handleNavigate}
@@ -197,6 +277,82 @@ export default function App() {
               posts={posts}
               onSelectPost={handleSelectPost}
             />
+
+            {galleryImages.length > 0 && (
+              <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-end justify-between border-b-2 border-slate-200 pb-2 mb-5">
+                  <div>
+                    <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 font-condensed">
+                      Photo Gallery
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">Explore photos from our community.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('gallery')}
+                    className="text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700"
+                  >
+                    View all photos
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {galleryImages.slice(0, 6).map((image, index) => (
+                    <button
+                      key={image.id}
+                      type="button"
+                      onClick={() => handleNavigate('gallery')}
+                      aria-label={`Open photo gallery, preview ${index + 1}`}
+                      className="group aspect-square overflow-hidden bg-slate-200"
+                    >
+                      <img
+                        src={image.url}
+                        alt=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {posts.length > 0 && (
+              <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+                <div className="flex items-center justify-between border-b-2 border-slate-200 pb-2 mb-5">
+                  <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 font-condensed">Latest Stories</h2>
+                  <button
+                    onClick={() => handleNavigate('articles')}
+                    className="text-xs font-bold uppercase tracking-wider text-red-600 hover:text-red-700"
+                  >
+                    All articles
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {posts.slice(0, 4).map((post) => (
+                    <article
+                      key={post.id}
+                      onClick={() => handleSelectPost(post)}
+                      className="group cursor-pointer border border-slate-200 bg-white p-3 shadow-xs"
+                    >
+                      <div className="mb-3 aspect-[16/10] overflow-hidden bg-slate-100">
+                        <img
+                          src={post.image}
+                          alt={post.title}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <h3 className="line-clamp-2 font-bold leading-snug text-slate-900 group-hover:text-red-600">
+                        {post.title}
+                      </h3>
+                      <p className="mt-2 text-xs text-slate-500">{post.date} · {post.author}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Mid Page Static Banner Ad */}
             <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -249,6 +405,12 @@ export default function App() {
             posts={posts}
             videos={videos}
             galleryImages={galleryImages}
+            requiresAdminAuth
+            isAdmin={isAdmin}
+            authLoading={authLoading}
+            contentError={contentError}
+            onSignIn={handleAdminSignIn}
+            onSignOut={handleAdminSignOut}
             onAddPost={handleAddPost}
             onUpdatePost={handleUpdatePost}
             onDeletePost={handleDeletePost}
@@ -277,38 +439,6 @@ export default function App() {
             <BannerAd type="top" className="mb-6" />
             <PageTemplates
               template="author"
-              posts={posts}
-              onSelectPost={handleSelectPost}
-              onSelectCategory={() => {}}
-              onSearch={handleSearch}
-              onOpenSubscribe={() => setIsSubscribeOpen(true)}
-              onNavigateHome={() => handleNavigate('home')}
-            />
-            <BannerAd type="bottom" className="mt-8" />
-          </div>
-        )}
-
-        {currentView === 'docs' && (
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <BannerAd type="top" className="mb-6" />
-            <PageTemplates
-              template="docs"
-              posts={posts}
-              onSelectPost={handleSelectPost}
-              onSelectCategory={() => {}}
-              onSearch={handleSearch}
-              onOpenSubscribe={() => setIsSubscribeOpen(true)}
-              onNavigateHome={() => handleNavigate('home')}
-            />
-            <BannerAd type="bottom" className="mt-8" />
-          </div>
-        )}
-
-        {currentView === 'support' && (
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <BannerAd type="top" className="mb-6" />
-            <PageTemplates
-              template="support"
               posts={posts}
               onSelectPost={handleSelectPost}
               onSelectCategory={() => {}}

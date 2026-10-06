@@ -23,9 +23,7 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
   onOpenSubscribe,
   onNavigateHome,
 }) => {
-  // Support FAQ expansion state
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
   const [ticketSubmitted, setTicketSubmitted] = useState(false);
 
   // Category filtering
@@ -548,85 +546,30 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
             Get in Touch
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-condensed mt-1 mb-2">
-            Contact Editorial Staff
+            Need a Website?
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
-            Have a news tip, press release, sponsorship inquiry, or feedback on MagazineSpare? Reach out to our editorial desk.
+            I build professional websites for businesses, creators, and organizations. Contact me on WhatsApp to discuss your website and get a quote.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 bg-white p-8 border border-slate-200 shadow-xs">
             <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 pb-2 mb-6 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-16 after:h-[2px] after:bg-red-600 font-condensed">
-              Send a Message
+              Let&apos;s Build Your Website
             </h2>
-
-            {contactSubmitted ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs rounded">
-                ✓ Message received! An editor from MagazineSpare will get back to you shortly.
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setContactSubmitted(true);
-                }}
-                className="space-y-4"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Jane Doe"
-                      className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="jane@example.com"
-                      className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Subject *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Story Tip / Advertisement / Technical Query"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Message *
-                  </label>
-                  <textarea
-                    required
-                    rows={5}
-                    placeholder="Please include full details..."
-                    className="w-full px-3 py-2 text-xs border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider px-6 py-2.5 transition-colors cursor-pointer"
-                >
-                  Send Message
-                </button>
-              </form>
-            )}
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+              Tell me what kind of website you need, what it should do, and when you need it. I&apos;ll get back to you on WhatsApp to discuss the details and pricing.
+            </p>
+            <p className="mt-6 text-lg font-bold text-slate-900">WhatsApp: 0623709042</p>
+            <a
+              href={`https://wa.me/255623709042?text=${encodeURIComponent('Hi, I need a website. Can we discuss the details and pricing?')}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm uppercase tracking-wider px-6 py-3 transition-colors"
+            >
+              Message me on WhatsApp
+            </a>
           </div>
 
           <div className="lg:col-span-4">

@@ -102,26 +102,6 @@ export const NavBar: React.FC<NavBarProps> = ({
               <span>Admin Panel</span>
             </button>
 
-            {/* Docs */}
-            <button
-              onClick={() => onNavigate('docs')}
-              className={`px-4 py-3.5 flex items-center transition-colors cursor-pointer ${
-                currentView === 'docs' ? 'bg-[#b91c1c] text-white' : 'hover:bg-red-700 text-white'
-              }`}
-            >
-              Docs
-            </button>
-
-            {/* Support */}
-            <button
-              onClick={() => onNavigate('support')}
-              className={`px-4 py-3.5 flex items-center transition-colors cursor-pointer ${
-                currentView === 'support' ? 'bg-[#b91c1c] text-white' : 'hover:bg-red-700 text-white'
-              }`}
-            >
-              Support
-            </button>
-
             {/* Contact */}
             <button
               onClick={() => onNavigate('contact')}
@@ -221,24 +201,6 @@ export const NavBar: React.FC<NavBarProps> = ({
           >
             <span>Admin Panel</span>
             <span className="text-[10px] bg-white text-red-600 px-1.5 py-0.5 rounded font-bold">MANAGE</span>
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('docs');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Docs
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('support');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Support
           </button>
           <button
             onClick={() => {
