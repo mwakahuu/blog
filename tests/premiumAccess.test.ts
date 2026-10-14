@@ -64,24 +64,23 @@ test('omits premium source URLs from public metadata but preserves free URLs', (
   assert.equal(free.videoUrl, 'https://media.example/free.m3u8');
 });
 
-test('only resolves media paths beneath an allow-listed HTTPS source directory', () => {
+test('resolves media from any HTTPS source but confines requests to its HTTPS origin and directory', () => {
   const source = 'https://cdn.example/video-id/playlist.m3u8';
-  const hosts = new Set(['cdn.example']);
-  const resolved = resolveAllowedMediaUrl(source, source, '720p/video.m3u8', hosts);
+  const resolved = resolveAllowedMediaUrl(source, source, '720p/video.m3u8');
   assert.equal(resolved.href, 'https://cdn.example/video-id/720p/video.m3u8');
-  assert.throws(() => resolveAllowedMediaUrl(source, source, '../../private.txt', hosts));
-  assert.throws(() => resolveAllowedMediaUrl(source, source, 'https://other.example/segment.ts', hosts));
-  assert.throws(() => resolveAllowedMediaUrl(source, source, 'https://cdn.example/video-id/a.ts', new Set()));
+  assert.throws(() => resolveAllowedMediaUrl(source, source, '../../private.txt'));
+  assert.throws(() => resolveAllowedMediaUrl(source, source, 'https://other.example/segment.ts'));
+  assert.throws(() => resolveAllowedMediaUrl('http://cdn.example/a.m3u8', 'http://cdn.example/a.m3u8', 'a.ts'));
 });
 
 test('rewrites HLS child playlists and key URIs through the protected route', () => {
   const source = 'https://cdn.example/video-id/playlist.m3u8';
   const manifest = '#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\n720p/video.m3u8\n';
-  const rewritten = rewriteHlsManifest(manifest, source, source, 'vid-1', new Set(['cdn.example']));
+  const rewritten = rewriteHlsManifest(manifest, source, source, 'vid-1');
   assert.match(rewritten, /\/api\/videos\/vid-1\/stream\?resource=/);
   assert.doesNotMatch(rewritten, /https:\/\/cdn\.example/);
   assert.equal((rewritten.match(/\/api\/videos\/vid-1\/stream/g) ?? []).length, 2);
-  assert.throws(() => rewriteHlsManifest('#EXTM3U\nhttps://other.example/a.ts', source, source, 'vid-1', new Set(['cdn.example'])));
+  assert.throws(() => rewriteHlsManifest('#EXTM3U\nhttps://other.example/a.ts', source, source, 'vid-1'));
 });
 
 test('premium migration creates constrained payment, entitlement, and hashed-session tables', () => {

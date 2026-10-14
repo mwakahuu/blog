@@ -282,13 +282,6 @@ type PaymentRow = {
   entitlement_id: string | null;
 };
 
-const premiumAllowedHosts = new Set(
-  (process.env.PREMIUM_VIDEO_ALLOWED_HOSTS || 'vz-6aac71b9-360.b-cdn.net')
-    .split(',')
-    .map((host) => host.trim().toLowerCase())
-    .filter(Boolean),
-);
-
 const premiumCookie = (token: string, maxAgeMs: number) =>
   `${PREMIUM_SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.max(0, Math.floor(maxAgeMs / 1000))}${secureCookie ? '; Secure' : ''}`;
 
@@ -321,10 +314,9 @@ const setPremiumCookie = (response: Response, token: string, expiresAt: number) 
 
 const sameOriginPaymentRequest: RequestHandler = (request, response, next) => {
   const originHeader = request.get('origin');
-  const expectedHost = process.env.PUBLIC_APP_URL
-    ? new URL(process.env.PUBLIC_APP_URL).host
-    : request.get('host');
+  const configuredPublicUrl = process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
   try {
+    const expectedHost = configuredPublicUrl ? new URL(configuredPublicUrl).host : request.get('host');
     const origin = originHeader ? new URL(originHeader) : null;
     const validProtocol = origin && (secureCookie ? origin.protocol === 'https:' : ['http:', 'https:'].includes(origin.protocol));
     if (!origin || !validProtocol || origin.host !== expectedHost) {
@@ -463,8 +455,7 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
   }
   if (secureCookie && (
     !process.env.FASTLIPA_WEBHOOK_SECRET?.trim() ||
-    !process.env.PUBLIC_APP_URL?.trim() ||
-    !process.env.BUNNY_CDN_TOKEN_KEY?.trim() ||
+    !(process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim()) ||
     process.env.PREMIUM_MEDIA_PROTECTION_CONFIRMED !== 'true'
   )) {
     response.status(503).json({ error: 'Premium payment is temporarily unavailable until secure payment and video delivery are configured.' });
@@ -499,8 +490,9 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     reference,
     name: 'Chombezo Premium Videos',
   };
-  if (process.env.PUBLIC_APP_URL?.trim()) {
-    payload.webhook_url = new URL('/api/payments/webhook', process.env.PUBLIC_APP_URL).toString();
+  const publicAppUrl = process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  if (publicAppUrl) {
+    payload.webhook_url = new URL('/api/payments/webhook', publicAppUrl).toString();
   }
 
   try {
@@ -657,7 +649,7 @@ app.get('/api/videos/:id/playback', (request, response) => {
   }
   try {
     const source = new URL(video.videoUrl);
-    resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, `${source.pathname}${source.search}`, premiumAllowedHosts);
+    resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, `${source.pathname}${source.search}`);
     const resource = encodeURIComponent(`${source.pathname}${source.search}`);
     response.json({ url: `/api/videos/${encodeURIComponent(video.id)}/stream?resource=${resource}`, format });
   } catch {
@@ -684,14 +676,14 @@ app.get('/api/videos/:id/stream', async (request, response) => {
 
   try {
     const source = new URL(video.videoUrl);
-    const target = resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, resource, premiumAllowedHosts);
+    const target = resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, resource);
     const headers = new Headers();
     for (const header of ['range', 'if-range', 'if-none-match']) {
       const value = request.get(header);
       if (value) headers.set(header, value);
     }
     const tokenKey = process.env.BUNNY_CDN_TOKEN_KEY;
-    const upstreamUrl = tokenKey
+    const upstreamUrl = tokenKey && target.hostname.toLowerCase().endsWith('.b-cdn.net')
       ? createBunnyTokenUrl(target, tokenKey, Math.floor(Date.now() / 1000) + 300)
       : target;
     const upstream = await fetch(upstreamUrl, {
@@ -707,7 +699,7 @@ app.get('/api/videos/:id/stream', async (request, response) => {
       if (value) response.setHeader(header, value);
     }
     if (isManifest && upstream.ok) {
-      const rewritten = rewriteHlsManifest(await upstream.text(), video.videoUrl, target.toString(), video.id, premiumAllowedHosts);
+      const rewritten = rewriteHlsManifest(await upstream.text(), video.videoUrl, target.toString(), video.id);
       response.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
       response.setHeader('Content-Length', Buffer.byteLength(rewritten));
       response.end(rewritten);

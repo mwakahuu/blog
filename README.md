@@ -29,19 +29,18 @@ The server creates a pending FastLipa collection, then verifies completion throu
 Add these server-only values to `.env` (never use a `VITE_` prefix):
 
 ```dotenv
-FASTLIPA_API_TOKEN=your-private-fastlipa-api-token
-FASTLIPA_WEBHOOK_SECRET=your-fastlipa-webhook-signing-secret
-PUBLIC_APP_URL=https://blog.example.com
-BUNNY_CDN_TOKEN_KEY=your-bunny-pull-zone-token-authentication-key
-PREMIUM_VIDEO_ALLOWED_HOSTS=vz-6aac71b9-360.b-cdn.net
+FASTLIPA_API_TOKEN=
+FASTLIPA_WEBHOOK_SECRET=
+PUBLIC_APP_URL=https://utamu.chombezo.online
+BUNNY_CDN_TOKEN_KEY=
 PREMIUM_MEDIA_PROTECTION_CONFIRMED=true
 ```
 
-Generate a webhook signing secret with FastLipa's authenticated `POST /v1/webhook_secret/generate` endpoint and store the returned value in `FASTLIPA_WEBHOOK_SECRET`. Set the FastLipa Developer webhook URL to `https://blog.example.com/api/payments/webhook`; the app also sends that URL on payment creation. The app verifies the webhook signature and independently checks transaction status, amount, reference, and provider transaction ID before granting access. FastLipa's documented status response does not include a currency field; this implementation uses the account's TZS collection amount.
+Generate a webhook signing secret with FastLipa's authenticated `POST /v1/webhook_secret/generate` endpoint and store the returned value in `FASTLIPA_WEBHOOK_SECRET`. After deploying the Express backend at the new domain, set the FastLipa Developer webhook URL to `https://utamu.chombezo.online/api/payments/webhook`; the app also sends that URL on payment creation. **The current Vercel deployment does not serve the Express webhook route and returns 404, so the new URL will work only after the backend is deployed and reachable.** The app verifies the webhook signature and independently checks transaction status, amount, reference, and provider transaction ID before granting access. FastLipa's documented status response does not include a currency field; this implementation uses the account's TZS collection amount.
 
-Before enabling premium sales, enable BunnyCDN token authentication for the configured pull zone and use its token-authentication key as `BUNNY_CDN_TOKEN_KEY`. The app signs each upstream HLS playlist, key, segment, or MP4 request with a five-minute Bunny URL token and proxies media only after checking the five-hour entitlement. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after testing that a direct Bunny URL without a token is denied. The confirmation variable is an operator gate, not an automatic check that Bunny settings are correct. Do not reuse the Bunny key as a FastLipa secret. Add any other premium media host to `PREMIUM_VIDEO_ALLOWED_HOSTS` only if it provides equivalent signed/private origin delivery and is compatible with Bunny-style token authentication.
+The admin may configure an HTTPS stream URL from any host. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. `BUNNY_CDN_TOKEN_KEY` is optional and is used to sign upstream URLs only for Bunny `*.b-cdn.net` sources. Other providers must either offer protected/signed origin URLs configured by the admin or otherwise keep their origin URLs private. A same-origin proxy does not make a publicly accessible provider URL private. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying unauthorized direct access is denied by the media provider. Do not reuse the Bunny key as a FastLipa secret.
 
-Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. Browser tests are in `tests/premiumAccess.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by these tests. Configure and verify credentials and webhook delivery with the FastLipa account before production sales.
+Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure and verify credentials and webhook delivery with the FastLipa account before production sales.
 
 This deployment runs the app and Caddy in Docker Compose. Caddy obtains and renews HTTPS certificates. The app is only reachable through Caddy, and the SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
 
@@ -83,7 +82,7 @@ openssl rand -base64 36
 Create `.env` in `/opt/blog` with your real domain, admin email, and generated password:
 
 ```dotenv
-DOMAIN=blog.example.com
+DOMAIN=utamu.chombezo.online
 ADMIN_EMAIL=you@example.com
 ADMIN_PASSWORD=paste-your-generated-password-here
 ```

@@ -61,7 +61,6 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
       FASTLIPA_WEBHOOK_SECRET: 'test-webhook-secret',
       PUBLIC_APP_URL: origin,
       BUNNY_CDN_TOKEN_KEY: 'test-bunny-token-key',
-      PREMIUM_VIDEO_ALLOWED_HOSTS: 'cdn.test',
       PREMIUM_MEDIA_PROTECTION_CONFIRMED: 'true',
     },
     stdio: 'ignore',

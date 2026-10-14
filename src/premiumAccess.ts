@@ -53,7 +53,6 @@ export const resolveAllowedMediaUrl = (
   sourceUrl: string,
   currentUrl: string,
   resource: string,
-  allowedHosts: ReadonlySet<string>,
 ): URL => {
   const source = new URL(sourceUrl);
   const target = new URL(resource, currentUrl);
@@ -63,7 +62,6 @@ export const resolveAllowedMediaUrl = (
     source.protocol !== 'https:' ||
     source.username ||
     source.password ||
-    !allowedHosts.has(source.hostname.toLowerCase()) ||
     target.origin !== source.origin ||
     !target.pathname.startsWith(rootPath)
   ) {
@@ -78,10 +76,9 @@ export const rewriteHlsManifest = (
   sourceUrl: string,
   currentUrl: string,
   videoId: string,
-  allowedHosts: ReadonlySet<string>,
 ): string => {
   const proxyUrl = (uri: string) => {
-    const target = resolveAllowedMediaUrl(sourceUrl, currentUrl, uri, allowedHosts);
+    const target = resolveAllowedMediaUrl(sourceUrl, currentUrl, uri);
     const resource = encodeURIComponent(`${target.pathname}${target.search}`);
     return `/api/videos/${encodeURIComponent(videoId)}/stream?resource=${resource}`;
   };
