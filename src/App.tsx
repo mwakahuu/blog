@@ -26,6 +26,7 @@ import { Footer } from './components/Footer';
 import { BannerAd } from './components/BannerAds';
 import { SearchModal, SubscribeModal, AdInfoModal } from './components/Modals';
 import {
+  fetchAdminVideos,
   fetchAdminSession,
   fetchContent,
   importLegacyContent,
@@ -81,6 +82,7 @@ export default function App() {
   ));
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
+  const [adminVideos, setAdminVideos] = useState<VideoItem[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
   const [products, setProducts] = useState<ShopProduct[]>(PRODUCTS);
   const [currentView, setCurrentView] = useState<ViewMode>(getViewFromPath);
@@ -117,8 +119,10 @@ export default function App() {
       });
 
     fetchAdminSession()
-      .then((authenticated) => {
-        if (active) setIsAdmin(authenticated);
+      .then(async (authenticated) => {
+        if (!active) return;
+        setIsAdmin(authenticated);
+        if (authenticated) setAdminVideos(await fetchAdminVideos());
       })
       .catch((error: unknown) => {
         if (active) {
@@ -193,6 +197,12 @@ export default function App() {
   };
 
   // Admin content management functions
+  const refreshVideoLists = async () => {
+    const [content, adminVideoList] = await Promise.all([fetchContent(), fetchAdminVideos()]);
+    setVideos(content.videos);
+    setAdminVideos(adminVideoList);
+  };
+
   const handleAddPost = async (newPost: Post) => {
     await savePost(newPost);
     setPosts((prevPosts) => [newPost, ...prevPosts]);
@@ -218,17 +228,17 @@ export default function App() {
 
   const handleAddVideo = async (newVideo: VideoItem) => {
     await saveVideo(newVideo);
-    setVideos((prevVideos) => [newVideo, ...prevVideos]);
+    await refreshVideoLists();
   };
 
   const handleUpdateVideo = async (updatedVideo: VideoItem) => {
     await saveVideo(updatedVideo);
-    setVideos((prevVideos) => prevVideos.map((video) => video.id === updatedVideo.id ? updatedVideo : video));
+    await refreshVideoLists();
   };
 
   const handleDeleteVideo = async (videoId: string) => {
     await removeVideo(videoId);
-    setVideos((prevVideos) => prevVideos.filter((video) => video.id !== videoId));
+    await refreshVideoLists();
   };
 
   const handleAddGalleryImage = async (image: GalleryImage) => {
@@ -260,6 +270,7 @@ export default function App() {
   const handleAdminSignIn = async (email: string, password: string) => {
     await loginAdmin(email, password);
     setIsAdmin(true);
+    setAdminVideos(await fetchAdminVideos());
     try {
       const legacyContent = readLegacyContent();
       if (!legacyContent) return;
@@ -283,6 +294,7 @@ export default function App() {
   const handleAdminSignOut = async () => {
     await logoutAdmin();
     setIsAdmin(false);
+    setAdminVideos([]);
   };
 
   return (
@@ -512,7 +524,7 @@ export default function App() {
         {currentView === 'admin' && (
           <AdminPanelPage
             posts={posts}
-            videos={videos}
+            videos={adminVideos}
             galleryImages={galleryImages}
             products={products}
             requiresAdminAuth

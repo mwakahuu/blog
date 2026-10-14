@@ -26,6 +26,8 @@ COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/server.ts ./server.ts
 COPY --from=build --chown=node:node /app/src/data ./src/data
 COPY --from=build --chown=node:node /app/src/types.ts ./src/types.ts
+COPY --from=build --chown=node:node /app/src/premiumAccess.ts ./src/premiumAccess.ts
+COPY --from=build --chown=node:node /app/migrations ./migrations
 COPY --from=build --chown=node:node /app/dist ./dist
 
 RUN mkdir -p /data && chown node:node /data

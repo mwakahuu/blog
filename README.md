@@ -18,6 +18,31 @@ Open <http://localhost:3000>. The first start creates the SQLite database at `DB
 
 ## Production VPS Deployment (Docker)
 
+Vercel is not supported by the current deployment architecture. This project needs the Express server in `server.ts` and a persistent SQLite database; a default Vite deployment on Vercel only builds the frontend and does not provide those API routes or durable database storage. Video files are hosted separately on BunnyCDN, but their records and stream URLs are loaded through the app API. Use the Docker deployment below, or migrate the backend and database to services supported by Vercel.
+
+## Premium video payments
+
+In **Admin Panel → Videos**, mark each new or edited video as Free or Premium. Videos are free by default. A visitor selecting a premium video sees the 3,000 TZS mobile-money prompt; a verified payment grants access to every premium video for five hours from provider confirmation. Enter a local Tanzanian mobile number beginning with `06` or `07`. No viewer account or password is created.
+
+The server creates a pending FastLipa collection, then verifies completion through FastLipa's authenticated transaction-status endpoint. It also accepts FastLipa webhooks only when the raw-body HMAC signature is valid. Completion, entitlement extension, and payment updates are idempotent and transactional. The browser receives an HttpOnly opaque cookie; only its SHA-256 hash is stored. The additive migration in `migrations/001_premium_access.sql` runs automatically at server startup and does not alter existing content tables. Back up `data/blog.sqlite` before deploying.
+
+Add these server-only values to `.env` (never use a `VITE_` prefix):
+
+```dotenv
+FASTLIPA_API_TOKEN=your-private-fastlipa-api-token
+FASTLIPA_WEBHOOK_SECRET=your-fastlipa-webhook-signing-secret
+PUBLIC_APP_URL=https://blog.example.com
+BUNNY_CDN_TOKEN_KEY=your-bunny-pull-zone-token-authentication-key
+PREMIUM_VIDEO_ALLOWED_HOSTS=vz-6aac71b9-360.b-cdn.net
+PREMIUM_MEDIA_PROTECTION_CONFIRMED=true
+```
+
+Generate a webhook signing secret with FastLipa's authenticated `POST /v1/webhook_secret/generate` endpoint and store the returned value in `FASTLIPA_WEBHOOK_SECRET`. Set the FastLipa Developer webhook URL to `https://blog.example.com/api/payments/webhook`; the app also sends that URL on payment creation. The app verifies the webhook signature and independently checks transaction status, amount, reference, and provider transaction ID before granting access. FastLipa's documented status response does not include a currency field; this implementation uses the account's TZS collection amount.
+
+Before enabling premium sales, enable BunnyCDN token authentication for the configured pull zone and use its token-authentication key as `BUNNY_CDN_TOKEN_KEY`. The app signs each upstream HLS playlist, key, segment, or MP4 request with a five-minute Bunny URL token and proxies media only after checking the five-hour entitlement. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after testing that a direct Bunny URL without a token is denied. The confirmation variable is an operator gate, not an automatic check that Bunny settings are correct. Do not reuse the Bunny key as a FastLipa secret. Add any other premium media host to `PREMIUM_VIDEO_ALLOWED_HOSTS` only if it provides equivalent signed/private origin delivery and is compatible with Bunny-style token authentication.
+
+Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. Browser tests are in `tests/premiumAccess.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by these tests. Configure and verify credentials and webhook delivery with the FastLipa account before production sales.
+
 This deployment runs the app and Caddy in Docker Compose. Caddy obtains and renews HTTPS certificates. The app is only reachable through Caddy, and the SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
 
 ### 1. Point a domain at the VPS

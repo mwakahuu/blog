@@ -5,9 +5,10 @@ interface HlsVideoPlayerProps {
   src: string;
   title: string;
   poster?: string;
+  mediaType?: 'hls' | 'file';
 }
 
-export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, poster }) => {
+export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, poster, mediaType }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -21,6 +22,23 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
     if (!src) {
       setErrorMessage('No video source available.');
       return;
+    }
+
+    const isHls = mediaType ?? (() => {
+      try {
+        return new URL(src, window.location.href).pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file';
+      } catch {
+        return 'file';
+      }
+    })();
+
+    if (isHls === 'file') {
+      video.src = src;
+      video.load();
+      return () => {
+        video.removeAttribute('src');
+        video.load();
+      };
     }
 
     const useNativeHls = video.canPlayType('application/vnd.apple.mpegurl');
@@ -59,7 +77,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
     }
 
     setErrorMessage('This browser does not support HLS playback. Please use a modern browser or try again.');
-  }, [src]);
+  }, [src, mediaType]);
 
   return (
     <div className="relative w-full h-full bg-black">

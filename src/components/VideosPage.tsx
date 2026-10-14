@@ -1,29 +1,181 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { LoaderCircle, LockKeyhole, Share2, ThumbsUp, X } from 'lucide-react';
 import type { Post, VideoItem } from '../types';
-import { VIDEOS } from '../data/videos';
+import {
+  createPremiumPayment,
+  fetchPremiumAccessStatus,
+  fetchPremiumPaymentStatus,
+  fetchPremiumPlayback,
+  type PremiumAccessStatus,
+} from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
 import { Sidebar } from './Sidebar';
 
 interface VideosPageProps {
-  videos?: VideoItem[];
+  videos: VideoItem[];
   posts: Post[];
   onSelectPost: (post: Post) => void;
   onSearch: (query: string) => void;
 }
 
 export const VideosPage: React.FC<VideosPageProps> = ({
-  videos = VIDEOS,
+  videos,
   posts,
   onSelectPost,
   onSearch,
 }) => {
-  const [selectedVideo, setSelectedVideo] = useState<VideoItem>(videos[0] || VIDEOS[0]);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(videos[0] ?? null);
+  const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(() => new Set());
+  const [accessStatus, setAccessStatus] = useState<PremiumAccessStatus | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playbackFormat, setPlaybackFormat] = useState<'hls' | 'file'>('hls');
+  const [playbackError, setPlaybackError] = useState('');
+  const [playbackRetry, setPlaybackRetry] = useState(0);
+  const [isPurchaseOpen, setIsPurchaseOpen] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [paymentPhase, setPaymentPhase] = useState<'idle' | 'starting' | 'pending' | 'error' | 'success'>('idle');
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const isLiked = selectedVideo ? likedVideoIds.has(selectedVideo.id) : false;
 
-  const currentVideoSrc = selectedVideo.videoUrl || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4';
+  useEffect(() => {
+    setSelectedVideo((current) => {
+      if (!videos.length) return null;
+      return current ? videos.find((video) => video.id === current.id) ?? videos[0] : videos[0];
+    });
+  }, [videos]);
+
+  useEffect(() => {
+    let active = true;
+    fetchPremiumAccessStatus().then((status) => {
+      if (!active) return;
+      setAccessStatus(status);
+      if (status.active) setIsPurchaseOpen(false);
+      if (status.pendingReference) {
+        setPaymentReference(status.pendingReference);
+        setPaymentPhase('pending');
+        setPaymentMessage('Subiri uthibitisho wa malipo kwenye simu yako.');
+        if (selectedVideo?.isPremium) setIsPurchaseOpen(true);
+      }
+    }).catch(() => {
+      if (active) setAccessStatus({ active: false, expiresAt: null, pendingReference: null });
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!paymentReference) return;
+    let active = true;
+    let timer: number | undefined;
+    const checkPayment = async () => {
+      try {
+        const payment = await fetchPremiumPaymentStatus(paymentReference);
+        if (!active) return;
+        if (payment.status === 'completed' && payment.accessActive) {
+          setAccessStatus({ active: true, expiresAt: payment.expiresAt, pendingReference: null });
+          setPaymentMessage('Malipo yamefanikiwa. Video zote za premium zimefunguliwa kwa saa 5.');
+          setPaymentPhase('success');
+          setPaymentReference(null);
+          setIsPurchaseOpen(false);
+          return;
+        }
+        if (payment.status === 'failed' || payment.status === 'cancelled' || payment.status === 'refunded') {
+          setPaymentMessage('Malipo hayajakamilika. Tafadhali jaribu tena.');
+          setPaymentPhase('error');
+          setPaymentReference(null);
+          return;
+        }
+        setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako. Tunakagua hali ya malipo...');
+      } catch {
+        if (active) setPaymentMessage('Bado tunasubiri uthibitisho kutoka FastLipa...');
+      }
+      if (active) timer = window.setTimeout(checkPayment, 4000);
+    };
+    void checkPayment();
+    return () => {
+      active = false;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [paymentReference]);
+
+  useEffect(() => {
+    if (!selectedVideo) return;
+    setPlaybackError('');
+    if (!selectedVideo.isPremium) {
+      setPlaybackUrl(selectedVideo.videoUrl ?? null);
+      setPlaybackFormat(selectedVideo.videoUrl?.toLowerCase().split('?')[0].endsWith('.m3u8') ? 'hls' : 'file');
+      return;
+    }
+    setPlaybackUrl(null);
+    if (!accessStatus?.active) return;
+
+    let active = true;
+    fetchPremiumPlayback(selectedVideo.id)
+      .then(({ url, format }) => {
+        if (active) {
+          setPlaybackUrl(url);
+          setPlaybackFormat(format);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) setPlaybackError(error instanceof Error ? error.message : 'Video haipatikani kwa sasa.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedVideo?.id, selectedVideo?.isPremium, selectedVideo?.videoUrl, accessStatus?.active, playbackRetry]);
+
+  useEffect(() => {
+    if (!accessStatus?.active || !accessStatus.expiresAt) return;
+    const delay = new Date(accessStatus.expiresAt).getTime() - Date.now();
+    const timer = window.setTimeout(() => {
+      setAccessStatus((current) => current ? { ...current, active: false } : current);
+      setPlaybackUrl(null);
+    }, Math.max(0, delay));
+    return () => window.clearTimeout(timer);
+  }, [accessStatus?.active, accessStatus?.expiresAt]);
 
   const handleSelectVideo = (video: VideoItem) => {
     setSelectedVideo(video);
+    setPlaybackUrl(null);
+    setPlaybackError('');
+    if (video.isPremium && !accessStatus?.active) setIsPurchaseOpen(true);
+    else setIsPurchaseOpen(false);
     window.scrollTo({ top: 180, behavior: 'smooth' });
+  };
+
+  const handlePaymentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPaymentPhase('starting');
+    setPaymentMessage('Tunaanzisha ombi la malipo...');
+    try {
+      const payment = await createPremiumPayment(phone);
+      setPaymentReference(payment.reference);
+      setPaymentPhase('pending');
+      setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako.');
+    } catch (error) {
+      try {
+        const status = await fetchPremiumAccessStatus();
+        if (status.pendingReference) {
+          setPaymentReference(status.pendingReference);
+          setPaymentPhase('pending');
+          setPaymentMessage('Tunakagua ombi lako la malipo.');
+          return;
+        }
+      } catch {
+        // Show the original payment error below.
+      }
+      setPaymentPhase('error');
+      setPaymentMessage(error instanceof Error ? error.message : 'Imeshindikana kuanzisha malipo.');
+    }
+  };
+
+  const openPurchase = () => {
+    setIsPurchaseOpen(true);
+    if (paymentPhase === 'success') setPaymentPhase('idle');
+    if (paymentPhase === 'error') setPaymentPhase('idle');
   };
 
   return (
@@ -34,38 +186,72 @@ export const VideosPage: React.FC<VideosPageProps> = ({
             <h1 className="catalog-panel-heading">Video za Chombezo</h1>
           </div>
 
-          <div className="catalog-video-player">
-            <div className="w-full bg-black aspect-video">
-              <HlsVideoPlayer
-                key={selectedVideo.id}
-                src={currentVideoSrc}
-                title={selectedVideo.title}
-                poster={selectedVideo.thumbnail}
-              />
+          {selectedVideo ? <div className="catalog-video-player">
+            <div className="catalog-video-frame">
+              {selectedVideo.isPremium && !accessStatus?.active ? (
+                <div className="catalog-video-locked" style={{ backgroundImage: `linear-gradient(rgb(0 0 0 / 55%), rgb(0 0 0 / 78%)), url("${selectedVideo.thumbnail}")` }}>
+                  <LockKeyhole size={36} aria-hidden="true" />
+                  <span>{accessStatus?.expiresAt && Date.parse(accessStatus.expiresAt) <= Date.now() ? 'Muda wako wa premium umeisha' : 'Video ya Premium'}</span>
+                  <button type="button" onClick={openPurchase}>Lipia kutazama video zote</button>
+                </div>
+              ) : playbackUrl ? (
+                <HlsVideoPlayer key={`${selectedVideo.id}-${playbackUrl}`} src={playbackUrl} title={selectedVideo.title} poster={selectedVideo.thumbnail} mediaType={playbackFormat} />
+              ) : playbackError ? (
+                <div className="catalog-video-player-message" role="status">
+                  <span>{playbackError}</span>
+                  <button type="button" onClick={() => setPlaybackRetry((value) => value + 1)}>Jaribu tena</button>
+                </div>
+              ) : (
+                <div className="catalog-video-player-message" role="status">
+                  {selectedVideo.isPremium ? <LoaderCircle className="animate-spin" size={24} aria-label="Inapakia video" /> : 'Video stream haijawekwa.'}
+                </div>
+              )}
             </div>
             <div className="catalog-video-info">
-              <h2>{selectedVideo.title}</h2>
-              <div className="catalog-video-meta">
-                <span>{selectedVideo.duration}</span>
-                <span>{selectedVideo.uploadDate}</span>
+              <h2>{selectedVideo.title} {selectedVideo.isPremium && <span className="catalog-video-premium-label">PREMIUM</span>}</h2>
+              <div className="catalog-video-toolbar">
+                <div className="catalog-video-meta">
+                  {selectedVideo.channelName && <span>{selectedVideo.channelName}</span>}
+                  {selectedVideo.duration && <span>{selectedVideo.duration}</span>}
+                  {selectedVideo.uploadDate && <span>{selectedVideo.uploadDate}</span>}
+                </div>
+                <div className="catalog-video-actions">
+                  <button
+                    type="button"
+                    className={`catalog-video-action-button ${isLiked ? 'catalog-video-action-liked' : ''}`}
+                    aria-label={isLiked ? 'Unlike this video' : 'Like this video'}
+                    aria-pressed={isLiked}
+                    onClick={() => setLikedVideoIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(selectedVideo.id)) next.delete(selectedVideo.id);
+                      else next.add(selectedVideo.id);
+                      return next;
+                    })}
+                  >
+                    <ThumbsUp size={18} aria-hidden="true" />
+                    <span>{selectedVideo.likes || 'Like'}</span>
+                  </button>
+                  <a
+                    href={`https://wa.me/255623709042?text=${encodeURIComponent('Tazama video hii: ' + selectedVideo.title)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="catalog-video-action-button"
+                    aria-label={`Share ${selectedVideo.title} on WhatsApp`}
+                  >
+                    <Share2 size={18} aria-hidden="true" />
+                    <span>Share</span>
+                  </a>
+                </div>
               </div>
-              <p>{selectedVideo.description}</p>
-              <a
-                href={`https://wa.me/255623709042?text=${encodeURIComponent('Tazama video hii: ' + selectedVideo.title)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="catalog-share-link"
-              >
-                Share via WhatsApp
-              </a>
+              <p className="catalog-video-description">{selectedVideo.description}</p>
             </div>
-          </div>
+          </div> : <div className="catalog-video-empty">Hakuna video zilizochapishwa kwa sasa.</div>}
 
           <div className="catalog-panel mt-5">
             <h2 className="catalog-panel-heading">Latest Videos</h2>
             <div className="catalog-video-grid p-4">
               {videos.map((video) => {
-                const isSelected = video.id === selectedVideo.id;
+                const isSelected = video.id === selectedVideo?.id;
                 return (
                   <button
                     key={video.id}
@@ -85,7 +271,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                       </span>
                     </span>
                     <span className="catalog-video-card-content">
-                      <span className="catalog-video-card-title">{video.title}</span>
+                      <span className="catalog-video-card-title">{video.title}{video.isPremium && <span className="catalog-video-premium-label">PREMIUM</span>}</span>
                       <span className="catalog-video-card-meta">{video.uploadDate}</span>
                     </span>
                   </button>
@@ -104,6 +290,57 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           />
         </div>
       </div>
+
+      {isPurchaseOpen && selectedVideo?.isPremium && (
+        <div className="catalog-video-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && paymentPhase !== 'starting' && paymentPhase !== 'pending') setIsPurchaseOpen(false);
+        }}>
+          <section className="catalog-video-purchase-modal" role="dialog" aria-modal="true" aria-labelledby="premium-payment-title">
+            <button type="button" className="catalog-video-modal-close" aria-label="Funga" onClick={() => setIsPurchaseOpen(false)}>
+              <X size={20} />
+            </button>
+            <h2 id="premium-payment-title">Lipia kutazama video zote</h2>
+            <p>Video zote za premium, video mpya kila siku</p>
+            {paymentPhase === 'pending' ? (
+              <div className="catalog-video-payment-status" role="status">
+                <LoaderCircle className="animate-spin" size={20} aria-hidden="true" />
+                <span>{paymentMessage}</span>
+              </div>
+            ) : paymentPhase === 'success' ? (
+              <div className="catalog-video-payment-success" role="status">{paymentMessage}</div>
+            ) : (
+              <form onSubmit={handlePaymentSubmit} className="catalog-video-payment-form">
+                <label htmlFor="premium-phone-number">Namba ya simu yenye pesa</label>
+                <input
+                  id="premium-phone-number"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  placeholder="06XXXXXXXX au 07XXXXXXXX"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+                  pattern="0[67][0-9]{8}"
+                  title="Weka namba ya simu inayoanza na 06 au 07"
+                  required
+                  disabled={paymentPhase === 'starting'}
+                />
+                {paymentPhase === 'error' && <p className="catalog-video-payment-error" role="alert">{paymentMessage}</p>}
+                <button type="submit" disabled={paymentPhase === 'starting'}>
+                  {paymentPhase === 'starting' ? <><LoaderCircle className="animate-spin" size={18} /> Inatuma...</> : 'Lipia sasa · TSh 3,000'}
+                </button>
+              </form>
+            )}
+            <div className="catalog-payment-methods" aria-label="Tigo Pesa, Vodacom M-Pesa, Airtel Money na Halopesa">
+              <img
+                src="https://i.ibb.co/bgvzfC11/logo.webp"
+                alt="Tigo Pesa, Vodacom M-Pesa, Airtel Money na Halopesa"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <small>Malipo ya TSh 3,000 yanafungua video zote kwa saa 5. Hakuna akaunti inayohitajika.</small>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

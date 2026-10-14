@@ -90,6 +90,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const [videoStreamUrl, setVideoStreamUrl] = useState('https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4');
   const [videoDuration, setVideoDuration] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
+  const [videoIsPremium, setVideoIsPremium] = useState(false);
   const [videoSuccessMsg, setVideoSuccessMsg] = useState('');
 
   // Gallery Image State
@@ -241,6 +242,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           title: videoTitle.trim(),
           thumbnail: videoThumbnailLink.trim(),
           videoUrl: videoStreamUrl.trim() || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4',
+          isPremium: videoIsPremium,
           duration: videoDuration.trim() || '12:00',
           description: videoDescription.trim(),
         };
@@ -256,6 +258,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         uploadDate: 'Just now',
         thumbnail: videoThumbnailLink.trim(),
         videoUrl: videoStreamUrl.trim() || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4',
+        isPremium: videoIsPremium,
         channelName: 'CHOMBEZO Video',
         description: videoDescription.trim(),
         likes: '1.2K',
@@ -269,6 +272,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
     setVideoThumbnailLink('');
     setVideoDuration('');
     setVideoDescription('');
+    setVideoIsPremium(false);
     setTimeout(() => setVideoSuccessMsg(''), 4000);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to save video.');
@@ -953,6 +957,16 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                 />
               </div>
 
+              <label className="flex items-center gap-3 text-sm font-bold text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={videoIsPremium}
+                  onChange={(event) => setVideoIsPremium(event.target.checked)}
+                  className="h-5 w-5 accent-red-600"
+                />
+                Premium video (one 3,000 TZS payment unlocks every premium video for 5 hours)
+              </label>
+
               <div className="flex items-center gap-4 pt-3">
                 <button
                   type="submit"
@@ -970,6 +984,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                       setVideoThumbnailLink('');
                       setVideoDuration('');
                       setVideoDescription('');
+                      setVideoIsPremium(false);
                     }}
                     className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm sm:text-base px-6 py-3.5 transition-colors cursor-pointer"
                   >
@@ -993,6 +1008,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                     <th className="p-4">Thumbnail</th>
                     <th className="p-4">Title</th>
                     <th className="p-4">Duration</th>
+                    <th className="p-4">Access</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1006,6 +1022,11 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                         <div className="line-clamp-1">{vid.title}</div>
                       </td>
                       <td className="p-4 text-slate-500 font-mono text-xs">{vid.duration}</td>
+                      <td className="p-4">
+                        <span className={`inline-block px-2 py-1 text-xs font-bold ${vid.isPremium ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'}`}>
+                          {vid.isPremium ? 'Premium' : 'Free'}
+                        </span>
+                      </td>
                       <td className="p-4 text-right space-x-2">
                         <button
                           onClick={() => {
@@ -1015,6 +1036,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                             setVideoStreamUrl(vid.videoUrl || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4');
                             setVideoDuration(vid.duration);
                             setVideoDescription(vid.description);
+                            setVideoIsPremium(Boolean(vid.isPremium));
                             window.scrollTo({ top: 350, behavior: 'smooth' });
                           }}
                           className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xs cursor-pointer"

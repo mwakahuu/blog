@@ -65,6 +65,7 @@ export interface VideoItem {
   uploadDate: string;
   thumbnail: string;
   videoUrl?: string;
+  isPremium?: boolean;
   channelName: string;
   channelAvatar?: string;
   description: string;

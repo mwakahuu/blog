@@ -13,6 +13,18 @@ export type LegacyContent = {
   galleryImages: GalleryImage[];
 };
 
+export type PremiumAccessStatus = {
+  active: boolean;
+  expiresAt: string | null;
+  pendingReference: string | null;
+};
+
+export type PremiumPaymentStatus = {
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
+  accessActive: boolean;
+  expiresAt: string | null;
+};
+
 const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`/api${path}`, {
     ...init,
@@ -31,6 +43,22 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
 };
 
 export const fetchContent = () => request<ContentResponse>('/content');
+
+export const fetchAdminVideos = () => request<VideoItem[]>('/admin/videos');
+
+export const fetchPremiumAccessStatus = () => request<PremiumAccessStatus>('/access/status');
+
+export const createPremiumPayment = (phone: string) =>
+  request<{ reference: string; status: 'pending'; amount: number; currency: 'TZS' }>('/payments/create', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+
+export const fetchPremiumPaymentStatus = (reference: string) =>
+  request<PremiumPaymentStatus>(`/payments/status/${encodeURIComponent(reference)}`);
+
+export const fetchPremiumPlayback = (videoId: string) =>
+  request<{ url: string; format: 'hls' | 'file' }>(`/videos/${encodeURIComponent(videoId)}/playback`);
 
 export const fetchAdminSession = async () => {
   const result = await request<{ authenticated: boolean }>('/auth/session');
