@@ -1,10 +1,6 @@
-import { Product } from '../types';
+import type { ShopProduct } from '../types';
 
-export type ShopProduct = Product & {
-  priceLabel: string;
-  images: string[];
-  videoUrl?: string;
-};
+export type { ShopProduct } from '../types';
 
 export const PRODUCTS: ShopProduct[] = [
   {

@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { PRODUCTS, ShopProduct } from '../data/shop';
+import type { Post, ShopProduct } from '../types';
+import { Sidebar } from './Sidebar';
 
 interface ShopPageProps {
   onNavigateHome: () => void;
+  products: ShopProduct[];
+  posts: Post[];
+  onSelectPost: (post: Post) => void;
+  onSearch: (query: string) => void;
 }
 
-export const ShopPage: React.FC<ShopPageProps> = () => {
+export const ShopPage: React.FC<ShopPageProps> = ({
+  products,
+  posts,
+  onSelectPost,
+  onSearch,
+}) => {
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
   const [activeImage, setActiveImage] = useState('');
 
@@ -22,92 +32,93 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white p-6 sm:p-10 border border-slate-200 shadow-xs mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-condensed">
-            Duka la Raha
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
-            Bei zote zimeonyeshwa kwa Shilingi za Tanzania (TSh). Chagua bidhaa kuona maelezo, picha na video, kisha tuma oda yako kupitia WhatsApp.
-          </p>
-        </div>
-        <a
-          href="https://wa.me/255623709042?text=Habari,%20nahitaji%20maelezo%20kuhusu%20bidhaa%20za%20dukani"
-          target="_blank"
-          rel="noreferrer"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider px-5 py-3 transition-colors shadow-sm self-start md:self-auto shrink-0"
-        >
-          WhatsApp Help (0623709042)
-        </a>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {PRODUCTS.map((product) => (
-          <article
-            key={product.id}
-            className="bg-white border border-slate-200 shadow-xs flex flex-col group overflow-hidden hover:border-slate-300 transition-all"
-          >
-            <button
-              type="button"
-              onClick={() => openProduct(product)}
-              className="relative aspect-[4/3] bg-slate-100 overflow-hidden cursor-pointer text-left"
-              aria-label={`Tazama picha na maelezo ya ${product.title}`}
-            >
-              <img
-                src={product.image}
-                alt={product.title}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              {product.videoUrl && (
-                <span className="absolute bottom-3 left-3 bg-black/75 text-white text-xs px-2 py-1">
-                  Ina video
-                </span>
-              )}
-            </button>
-
-            <div className="p-5 flex-1 flex flex-col">
-              <button
-                type="button"
-                onClick={() => openProduct(product)}
-                className="text-left text-base sm:text-lg font-bold text-slate-900 group-hover:text-red-600 transition-colors cursor-pointer leading-snug font-condensed mb-2"
-              >
-                {product.title}
-              </button>
-              <p className="text-sm sm:text-base font-medium text-slate-700 whitespace-pre-line line-clamp-5 mb-4 leading-relaxed">
-                {product.description}
+    <div className="catalog-page max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section className="lg:col-span-8">
+          <div className="catalog-panel mb-5">
+            <h1 className="catalog-panel-heading">Duka la Raha</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Bei zote ni kwa Shilingi za Tanzania (TSh). Chagua bidhaa kuona maelezo zaidi.
               </p>
-
-              {product.features.length > 0 && (
-                <ul className="text-sm font-medium text-slate-700 space-y-1.5 mb-5 border-t border-slate-100 pt-3">
-                  {product.features.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-lg sm:text-xl font-extrabold text-slate-950 font-condensed">
-                    {product.priceLabel}
-                  </span>
-                  <span className="text-xs text-emerald-700 font-semibold block mt-0.5">
-                    Bei kwa Shilingi za Tanzania
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAgiza(product)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 transition-colors cursor-pointer rounded-xs shadow-xs shrink-0"
-                  title="Agiza kupitia WhatsApp 0623709042"
-                >
-                  AGIZA
-                </button>
-              </div>
+              <a
+                href="https://wa.me/255623709042?text=Habari,%20nahitaji%20maelezo%20kuhusu%20bidhaa%20za%20dukani"
+                target="_blank"
+                rel="noreferrer"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wide px-4 py-2.5 transition-colors shadow-sm self-start shrink-0"
+              >
+                WhatsApp Help
+              </a>
             </div>
-          </article>
-        ))}
+          </div>
+
+          <div className="catalog-items-grid">
+            {products.map((product) => {
+              const productVideos = product.videoUrls?.length
+                ? product.videoUrls
+                : product.videoUrl ? [product.videoUrl] : [];
+
+              return (
+                <article
+                  key={product.id}
+                  className="catalog-item-card group"
+                >
+                  <button
+                  type="button"
+                  onClick={() => openProduct(product)}
+                  className="catalog-item-image"
+                  aria-label={`Tazama picha na maelezo ya ${product.title}`}
+                  >
+                  <img
+                    src={product.image}
+                    alt={product.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {productVideos.length > 0 && (
+                    <span className="absolute bottom-2 left-2 bg-black/75 text-white text-[10px] px-1.5 py-1">
+                      Ina video
+                    </span>
+                  )}
+                  </button>
+
+                  <div className="catalog-item-content">
+                  <button
+                    type="button"
+                    onClick={() => openProduct(product)}
+                    className="catalog-item-title"
+                  >
+                    {product.title}
+                  </button>
+                  <p className="text-xs text-slate-600 line-clamp-2 leading-snug">
+                    {product.description}
+                  </p>
+                  <div className="catalog-item-footer">
+                    <span className="catalog-price">{product.priceLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAgiza(product)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wide px-2.5 py-1.5 transition-colors cursor-pointer shrink-0"
+                      title="Agiza kupitia WhatsApp 0623709042"
+                    >
+                      Agiza
+                    </button>
+                  </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="lg:col-span-4">
+          <Sidebar
+            posts={posts}
+            onSelectPost={onSelectPost}
+            onSearch={onSearch}
+            compact
+          />
+        </div>
       </div>
 
       {selectedProduct && (
@@ -157,9 +168,13 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                     </button>
                   ))}
                 </div>
-                {selectedProduct.videoUrl && (
+                {(selectedProduct.videoUrls?.length
+                  ? selectedProduct.videoUrls
+                  : selectedProduct.videoUrl ? [selectedProduct.videoUrl] : []
+                ).map((videoUrl, index) => (
                   <video
-                    src={selectedProduct.videoUrl}
+                    key={`${videoUrl}-${index}`}
+                    src={videoUrl}
                     controls
                     preload="metadata"
                     className="w-full mt-4 bg-black"
@@ -167,7 +182,7 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                   >
                     Kivinjari chako hakiwezi kucheza video hii.
                   </video>
-                )}
+                ))}
               </div>
 
               <div className="flex flex-col">

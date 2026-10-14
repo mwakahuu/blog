@@ -1,4 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+
+const darEsSalaamDateTime = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'Africa/Dar_es_Salaam',
+  timeZoneName: 'short',
+});
 
 interface TopBarProps {
   onOpenSubscribe: () => void;
@@ -6,6 +17,16 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
+  const [currentDateTime, setCurrentDateTime] = useState(() => darEsSalaamDateTime.format(new Date()));
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentDateTime(darEsSalaamDateTime.format(new Date()));
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   return (
     <div className="bg-[#0f172a] text-slate-300 text-xs py-1.5 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
       <div className="max-w-[1400px] mx-auto flex items-center justify-between">
@@ -79,7 +100,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
           </div>
 
           <div className="hidden md:block text-slate-400 border-l border-slate-700 pl-3">
-            <span>Friday, May 10, 2024</span>
+            <span>{currentDateTime}</span>
           </div>
         </div>
 

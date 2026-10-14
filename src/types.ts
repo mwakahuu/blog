@@ -44,6 +44,13 @@ export interface Product {
   features: string[];
 }
 
+export interface ShopProduct extends Product {
+  priceLabel: string;
+  images: string[];
+  videoUrl?: string;
+  videoUrls?: string[];
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;

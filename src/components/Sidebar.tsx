@@ -8,12 +8,14 @@ interface SidebarProps {
   onSelectCategory?: (category: string) => void;
   onSearch: (query: string) => void;
   onOpenSubscribe?: () => void;
+  compact?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   posts,
   onSelectPost,
   onSearch,
+  compact = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,45 +29,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <aside className="w-full flex flex-col gap-6 select-none">
+    <aside className={`w-full flex flex-col gap-5 select-none ${compact ? 'catalog-sidebar' : ''}`}>
       {/* Widget 1: Search */}
       <div className="bg-white p-5 border border-slate-200 shadow-xs">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-12 after:h-[2px] after:bg-red-600 font-condensed">
-          Search Articles
-        </h3>
+        {!compact && (
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-12 after:h-[2px] after:bg-red-600 font-condensed">
+            Search Articles
+          </h3>
+        )}
         <form onSubmit={handleSearchSubmit} className="flex">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Type and press enter..."
-            className="flex-1 px-3 py-2 text-xs border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
+            placeholder="Type here to search..."
+            aria-label="Search articles"
+            className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
           />
           <button
             type="submit"
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer"
+            aria-label="Search"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
           >
-            Search
+            <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+            </svg>
           </button>
         </form>
       </div>
 
       {/* Widget 2: Static Banner Ad */}
-      <BannerAd type="mid" />
+      {!compact && <BannerAd type="mid" />}
 
       {/* Widget 3: Recent Posts */}
-      <div className="bg-white p-5 border border-slate-200 shadow-xs">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-12 after:h-[2px] after:bg-red-600 font-condensed">
-          Recent Stories
+      <div className="bg-white border border-slate-200 shadow-xs">
+        <h3 className={compact
+          ? 'catalog-panel-heading'
+          : 'text-sm font-bold uppercase tracking-wider text-slate-900 p-5 pb-2 mb-4 border-b-2 border-slate-200 font-condensed'}
+        >
+          {compact ? 'Featured Posts' : 'Recent Stories'}
         </h3>
-        <div className="flex flex-col divide-y divide-slate-100">
+        <div className={`flex flex-col gap-3 ${compact ? 'p-4' : 'px-5 pb-5'}`}>
           {recentPosts.map((post) => (
-            <div
+            <button
               key={post.id}
+              type="button"
               onClick={() => onSelectPost(post)}
-              className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3 group cursor-pointer"
+              className="flex items-center gap-3 group cursor-pointer text-left"
+              aria-label={`Read article: ${post.title}`}
             >
-              <div className="w-14 h-14 shrink-0 overflow-hidden bg-slate-200 rounded-xs">
+              <div className="w-24 h-16 shrink-0 overflow-hidden bg-slate-200">
                 <img
                   src={post.image}
                   alt={post.title}
@@ -74,23 +87,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-bold text-slate-900 group-hover:text-red-600 transition-colors line-clamp-2 leading-tight">
+                <h4 className="text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors line-clamp-3 leading-snug">
                   {post.title}
                 </h4>
-                <div className="text-[10px] text-slate-400 mt-1">
+                <div className="text-[11px] text-slate-500 mt-1">
                   {post.date}
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
 
       {/* Widget 4: Static Banner Ad Bottom */}
-      <BannerAd type="bottom" />
+      {!compact && <BannerAd type="bottom" />}
 
       {/* Widget 5: About Chombezo */}
-      <div className="bg-white p-5 border border-slate-200 shadow-xs">
+      {!compact && <div className="bg-white p-5 border border-slate-200 shadow-xs">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 pb-2 mb-4 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-12 after:h-[2px] after:bg-red-600 font-condensed">
           Kuhusu CHOMBEZO
         </h3>
@@ -102,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>·</span>
           <span>Version 2.0.1</span>
         </div>
-      </div>
+      </div>}
     </aside>
   );
 };

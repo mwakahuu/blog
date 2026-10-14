@@ -62,7 +62,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
   }, [src]);
 
   return (
-    <div className="relative w-full bg-black">
+    <div className="relative w-full h-full bg-black">
       <video
         ref={videoRef}
         className="w-full h-full object-contain bg-black"

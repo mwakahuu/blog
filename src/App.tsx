@@ -8,7 +8,7 @@ import { POSTS } from './data/posts';
 import { VIDEOS } from './data/videos';
 import { INITIAL_GALLERY_IMAGES } from './data/gallery';
 import { PRODUCTS } from './data/shop';
-import { Post, Comment, ViewMode, VideoItem, GalleryImage } from './types';
+import { Post, Comment, ViewMode, VideoItem, GalleryImage, ShopProduct } from './types';
 import { TopBar } from './components/TopBar';
 import { Header } from './components/Header';
 import { NavBar } from './components/NavBar';
@@ -33,10 +33,12 @@ import {
   logoutAdmin,
   removeGalleryImage,
   removePost,
+  removeProduct,
   removeVideo,
   saveGalleryImage,
   savePostComment,
   savePost,
+  saveProduct,
   saveVideo,
   type LegacyContent,
 } from './contentStore';
@@ -74,15 +76,24 @@ const readLegacyContent = (): LegacyContent | null => {
 };
 
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (
+    window.localStorage.getItem('blog-theme') === 'dark' ? 'dark' : 'light'
+  ));
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
+  const [products, setProducts] = useState<ShopProduct[]>(PRODUCTS);
   const [currentView, setCurrentView] = useState<ViewMode>(getViewFromPath);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState('');
+
+  useEffect(() => {
+    document.documentElement.style.colorScheme = theme;
+    window.localStorage.setItem('blog-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     let active = true;
@@ -93,6 +104,7 @@ export default function App() {
         setPosts(content.posts);
         setVideos(content.videos);
         setGalleryImages(content.galleryImages);
+        setProducts(content.products);
         setContentError('');
       })
       .catch((error: unknown) => {
@@ -229,6 +241,22 @@ export default function App() {
     setGalleryImages((prevImages) => prevImages.filter((image) => image.id !== imageId));
   };
 
+  const handleAddProduct = async (product: ShopProduct) => {
+    await saveProduct(product);
+    setProducts((previousProducts) => [product, ...previousProducts]);
+  };
+
+  const handleUpdateProduct = async (updatedProduct: ShopProduct) => {
+    await saveProduct(updatedProduct);
+    setProducts((previousProducts) => previousProducts.map((product) =>
+      product.id === updatedProduct.id ? updatedProduct : product));
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    await removeProduct(productId);
+    setProducts((previousProducts) => previousProducts.filter((product) => product.id !== productId));
+  };
+
   const handleAdminSignIn = async (email: string, password: string) => {
     await loginAdmin(email, password);
     setIsAdmin(true);
@@ -258,7 +286,25 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f8f9fa] text-slate-800 font-sans">
+    <div className="app-shell min-h-screen flex flex-col font-sans" data-theme={theme}>
+      <div className="theme-switch-bar">
+        <div className="max-w-[1400px] mx-auto flex w-full justify-end px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            className="theme-switch"
+            role="switch"
+            aria-checked={theme === 'dark'}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            onClick={() => setTheme((currentTheme) => currentTheme === 'dark' ? 'light' : 'dark')}
+          >
+            <span className="theme-switch-track" aria-hidden="true">
+              <span className="theme-switch-thumb" />
+            </span>
+            <span>{theme === 'dark' ? 'Dark' : 'Light'} mode</span>
+          </button>
+        </div>
+      </div>
+
       {currentView !== 'admin' && (
         <>
           <TopBar
@@ -291,7 +337,7 @@ export default function App() {
               onSelectPost={handleSelectPost}
             />
 
-            <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {products[0] && <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="flex items-center justify-between border-b-2 border-slate-200 pb-2 mb-5">
                 <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900 font-condensed">
                   Bidhaa Zetu
@@ -307,11 +353,11 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleNavigate('shop')}
-                aria-label={`Tazama bidhaa zote dukani. Bidhaa inayoangaziwa: ${PRODUCTS[0].title}`}
+                aria-label={`Tazama bidhaa zote dukani. Bidhaa inayoangaziwa: ${products[0].title}`}
                 className="group w-full overflow-hidden border border-slate-200 bg-white text-left shadow-xs transition-colors hover:border-slate-300 sm:flex"
               >
                 <img
-                  src={PRODUCTS[0].image}
+                  src={products[0].image}
                   alt=""
                   loading="lazy"
                   referrerPolicy="no-referrer"
@@ -319,20 +365,20 @@ export default function App() {
                 />
                 <span className="flex flex-1 flex-col justify-center p-5 sm:p-8">
                   <span className="text-lg font-bold text-slate-900 transition-colors group-hover:text-red-600 sm:text-2xl">
-                    {PRODUCTS[0].title}
+                    {products[0].title}
                   </span>
                   <span className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-slate-600 sm:text-base">
-                    {PRODUCTS[0].description}
+                    {products[0].description}
                   </span>
                   <span className="mt-4 text-lg font-extrabold text-emerald-700">
-                    {PRODUCTS[0].priceLabel}
+                    {products[0].priceLabel}
                   </span>
                   <span className="mt-4 self-start bg-emerald-600 px-5 py-3 text-xs font-extrabold uppercase tracking-wider text-white transition-colors group-hover:bg-emerald-700">
                     Tembelea duka · Bidhaa zote
                   </span>
                 </span>
               </button>
-            </section>
+            </section>}
 
             {galleryImages.length > 0 && (
               <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -440,12 +486,19 @@ export default function App() {
         {currentView === 'shop' && (
           <ShopPage
             onNavigateHome={() => handleNavigate('home')}
+            products={products}
+            posts={posts}
+            onSelectPost={handleSelectPost}
+            onSearch={handleSearch}
           />
         )}
 
         {currentView === 'videos' && (
           <VideosPage
             videos={videos}
+            posts={posts}
+            onSelectPost={handleSelectPost}
+            onSearch={handleSearch}
           />
         )}
 
@@ -461,6 +514,7 @@ export default function App() {
             posts={posts}
             videos={videos}
             galleryImages={galleryImages}
+            products={products}
             requiresAdminAuth
             isAdmin={isAdmin}
             authLoading={authLoading}
@@ -475,6 +529,9 @@ export default function App() {
             onDeleteVideo={handleDeleteVideo}
             onAddGalleryImage={handleAddGalleryImage}
             onDeleteGalleryImage={handleDeleteGalleryImage}
+            onAddProduct={handleAddProduct}
+            onUpdateProduct={handleUpdateProduct}
+            onDeleteProduct={handleDeleteProduct}
           />
         )}
 

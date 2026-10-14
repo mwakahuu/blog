@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Post, VideoItem, GalleryImage } from '../types';
+import { Post, VideoItem, GalleryImage, ShopProduct } from '../types';
 
 interface AdminPanelPageProps {
   posts: Post[];
   videos: VideoItem[];
   galleryImages: GalleryImage[];
+  products: ShopProduct[];
   requiresAdminAuth: boolean;
   isAdmin: boolean;
   authLoading: boolean;
@@ -19,12 +20,16 @@ interface AdminPanelPageProps {
   onDeleteVideo: (videoId: string) => Promise<void>;
   onAddGalleryImage: (image: GalleryImage) => Promise<void>;
   onDeleteGalleryImage: (imageId: string) => Promise<void>;
+  onAddProduct: (product: ShopProduct) => Promise<void>;
+  onUpdateProduct: (product: ShopProduct) => Promise<void>;
+  onDeleteProduct: (productId: string) => Promise<void>;
 }
 
 export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   posts,
   videos,
   galleryImages,
+  products,
   requiresAdminAuth,
   isAdmin,
   authLoading,
@@ -39,6 +44,9 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   onDeleteVideo,
   onAddGalleryImage,
   onDeleteGalleryImage,
+  onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
 }) => {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -61,7 +69,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   };
 
   // Destination selection: 'articles' | 'videos' | 'gallery'
-  const [postDestination, setPostDestination] = useState<'articles' | 'videos' | 'gallery'>('articles');
+  const [postDestination, setPostDestination] = useState<'articles' | 'videos' | 'gallery' | 'products'>('articles');
 
   // Article State
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -87,6 +95,14 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   // Gallery Image State
   const [galleryImageLink, setGalleryImageLink] = useState('');
   const [gallerySuccessMsg, setGallerySuccessMsg] = useState('');
+
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [productTitle, setProductTitle] = useState('');
+  const [productImageLinks, setProductImageLinks] = useState('');
+  const [productVideoLinks, setProductVideoLinks] = useState('');
+  const [productPriceLabel, setProductPriceLabel] = useState('');
+  const [productDescription, setProductDescription] = useState('');
+  const [productSuccessMsg, setProductSuccessMsg] = useState('');
 
   if (requiresAdminAuth && !isAdmin) {
     return (
@@ -284,6 +300,59 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
     setTimeout(() => setGallerySuccessMsg(''), 4000);
   };
 
+  const handleSaveProduct = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setActionError('');
+    const imageLinks = productImageLinks.split('\n').map((url) => url.trim()).filter(Boolean);
+    const videoLinks = productVideoLinks.split('\n').map((url) => url.trim()).filter(Boolean);
+    if (!productTitle.trim() || !imageLinks.length || !productDescription.trim()) {
+      alert('Please enter a product title, at least one image link, and a description.');
+      return;
+    }
+    if (videoLinks.length === 1) {
+      alert('Enter at least two video links, or leave the video links empty.');
+      return;
+    }
+
+    const existing = products.find((product) => product.id === editingProductId);
+    const product: ShopProduct = {
+      ...existing,
+      id: editingProductId ?? `product_${Date.now()}`,
+      title: productTitle.trim(),
+      category: existing?.category ?? 'Shop',
+      price: existing?.price ?? 0,
+      priceLabel: productPriceLabel.trim() || existing?.priceLabel || 'Wasiliana kwa bei',
+      rating: existing?.rating ?? 0,
+      reviewsCount: existing?.reviewsCount ?? 0,
+      description: productDescription.trim(),
+      image: imageLinks[0],
+      images: imageLinks,
+      videoUrl: videoLinks[0] || undefined,
+      videoUrls: videoLinks,
+      inStock: existing?.inStock ?? true,
+      features: existing?.features ?? [],
+    };
+
+    try {
+      if (editingProductId) {
+        await onUpdateProduct(product);
+        setProductSuccessMsg('✓ Product updated successfully!');
+      } else {
+        await onAddProduct(product);
+        setProductSuccessMsg('✓ Product published to the Shop page!');
+      }
+      setEditingProductId(null);
+      setProductTitle('');
+      setProductImageLinks('');
+      setProductVideoLinks('');
+      setProductPriceLabel('');
+      setProductDescription('');
+      setTimeout(() => setProductSuccessMsg(''), 4000);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Unable to save product.');
+    }
+  };
+
   return (
     <div className="max-w-[1300px] mx-auto px-4 sm:px-6 lg:px-8 py-10 select-none">
       {/* Executive Unique Header - No Ads in Admin Panel */}
@@ -309,6 +378,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
             <div>Articles: <strong className="text-white">{posts.length}</strong></div>
             <div>Videos: <strong className="text-white">{videos.length}</strong></div>
             <div>Gallery Photos: <strong className="text-white">{galleryImages.length}</strong></div>
+            <div>Products: <strong className="text-white">{products.length}</strong></div>
             {requiresAdminAuth && (
               <button onClick={() => void onSignOut()} className="mt-2 text-emerald-300 underline underline-offset-2">
                 Sign out
@@ -366,8 +436,193 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           >
             🖼 Photo Gallery (Images Only)
           </button>
+
+          <button
+            onClick={() => setPostDestination('products')}
+            className={`px-5 py-2.5 text-sm sm:text-base font-bold uppercase tracking-wider transition-all cursor-pointer rounded-xs ${
+              postDestination === 'products'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+            }`}
+          >
+            Products Page
+          </button>
         </div>
       </div>
+
+      {postDestination === 'products' && (
+        <div className="space-y-10">
+          <div className="bg-white p-8 sm:p-12 border border-slate-200 shadow-md">
+            <div className="flex items-center justify-between pb-3 mb-6 border-b-2 border-slate-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-20 after:h-[3px] after:bg-red-600">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-condensed">
+                {editingProductId ? 'Edit Shop Product' : 'Add Product to Shop'}
+              </h2>
+              <span className="text-xs sm:text-sm font-semibold text-slate-500 font-mono">Direct media links</span>
+            </div>
+
+            {productSuccessMsg && (
+              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-300 text-emerald-800 text-sm sm:text-base font-bold rounded">
+                {productSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProduct} className="space-y-6">
+              <div>
+                <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                  Product Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={productTitle}
+                  onChange={(event) => setProductTitle(event.target.value)}
+                  className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                    Image Link URLs * (One per line)
+                  </label>
+                  <textarea
+                    required
+                    rows={5}
+                    value={productImageLinks}
+                    onChange={(event) => setProductImageLinks(event.target.value)}
+                    placeholder={'https://images.example.com/product.jpg\nhttps://images.example.com/product-detail.jpg'}
+                    className="w-full px-4 py-3 text-sm border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                    Video Link URLs (Optional, enter two or more)
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={productVideoLinks}
+                    onChange={(event) => setProductVideoLinks(event.target.value)}
+                    placeholder={'https://media.example.com/product-video.mp4\nhttps://media.example.com/product-video-2.mp4'}
+                    className="w-full px-4 py-3 text-sm border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                  Display Price (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={productPriceLabel}
+                  onChange={(event) => setProductPriceLabel(event.target.value)}
+                  placeholder="TSh 25,000"
+                  className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm sm:text-base font-extrabold text-slate-800 uppercase mb-2 font-condensed">
+                  Description *
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  value={productDescription}
+                  onChange={(event) => setProductDescription(event.target.value)}
+                  className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 pt-3">
+                <button
+                  type="submit"
+                  className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-sm sm:text-base uppercase tracking-wider px-8 py-3.5 transition-colors cursor-pointer shadow-md"
+                >
+                  {editingProductId ? 'Update Product' : 'Publish Product'}
+                </button>
+                {editingProductId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProductId(null);
+                      setProductTitle('');
+                      setProductImageLinks('');
+                      setProductVideoLinks('');
+                      setProductPriceLabel('');
+                      setProductDescription('');
+                    }}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm sm:text-base px-6 py-3.5 transition-colors cursor-pointer"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-white p-8 sm:p-12 border border-slate-200 shadow-md">
+            <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-900 mb-6 font-condensed">
+              Current Shop Products ({products.length})
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-700 border border-slate-200 divide-y divide-slate-200">
+                <thead className="bg-slate-100 text-xs font-bold text-slate-800 uppercase">
+                  <tr>
+                    <th className="p-4">Image</th>
+                    <th className="p-4">Title</th>
+                    <th className="p-4">Media</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {products.map((product) => (
+                    <tr key={product.id} className="hover:bg-slate-50">
+                      <td className="p-4">
+                        <img src={product.image} alt="" className="w-16 h-11 object-cover rounded-xs" />
+                      </td>
+                      <td className="p-4 font-bold text-slate-900">{product.title}</td>
+                      <td className="p-4 text-slate-600">
+                        {(product.images?.length || 1)} images · {(product.videoUrls?.length || (product.videoUrl ? 1 : 0))} videos
+                      </td>
+                      <td className="p-4 text-right space-x-2">
+                        <button
+                          onClick={() => {
+                            setEditingProductId(product.id);
+                            setProductTitle(product.title);
+                            setProductImageLinks((product.images?.length ? product.images : [product.image]).join('\n'));
+                            setProductVideoLinks((product.videoUrls?.length
+                              ? product.videoUrls
+                              : product.videoUrl ? [product.videoUrl] : []).join('\n'));
+                            setProductPriceLabel(product.priceLabel);
+                            setProductDescription(product.description);
+                            window.scrollTo({ top: 350, behavior: 'smooth' });
+                          }}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xs cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete: "${product.title}"?`)) {
+                              void onDeleteProduct(product.id).catch((error: unknown) => {
+                                setActionError(error instanceof Error ? error.message : 'Unable to delete product.');
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-xs cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ==================================================================== */}
       {/* 1. ARTICLES POSTING (LONG STORIES) */}

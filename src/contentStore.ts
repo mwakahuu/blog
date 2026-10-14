@@ -1,9 +1,10 @@
-import { Comment, GalleryImage, Post, VideoItem } from './types';
+import { Comment, GalleryImage, Post, ShopProduct, VideoItem } from './types';
 
 type ContentResponse = {
   posts: Post[];
   videos: VideoItem[];
   galleryImages: GalleryImage[];
+  products: ShopProduct[];
 };
 
 export type LegacyContent = {
@@ -68,6 +69,12 @@ export const saveGalleryImage = (image: GalleryImage) =>
 
 export const removeGalleryImage = (id: string) =>
   request<{ success: true }>(`/gallery/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+export const saveProduct = (product: ShopProduct) =>
+  request<{ success: true }>('/products', { method: 'POST', body: JSON.stringify(product) });
+
+export const removeProduct = (id: string) =>
+  request<{ success: true }>(`/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
 export const savePostComment = (postId: string, comment: Comment) =>
   request<{ success: true }>(`/posts/${encodeURIComponent(postId)}/comments`, {

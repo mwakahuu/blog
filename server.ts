@@ -9,8 +9,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_GALLERY_IMAGES } from './src/data/gallery';
+import { PRODUCTS } from './src/data/shop';
 import { VIDEOS } from './src/data/videos';
-import type { Comment, GalleryImage, Post, VideoItem } from './src/types';
+import type { Comment, GalleryImage, Post, ShopProduct, VideoItem } from './src/types';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const databasePath = path.resolve(process.env.DB_PATH || path.join(projectRoot, 'data', 'blog.sqlite'));
@@ -32,6 +33,11 @@ database.exec(`
     created_at integer not null default (unixepoch())
   );
   create table if not exists gallery_images (
+    id text primary key,
+    data text not null,
+    created_at integer not null default (unixepoch())
+  );
+  create table if not exists products (
     id text primary key,
     data text not null,
     created_at integer not null default (unixepoch())
@@ -67,12 +73,35 @@ const seedDefaults = database.transaction(() => {
 });
 seedDefaults();
 
+const seedDefaultProducts = database.transaction(() => {
+  const initialized = database.prepare('select value from app_settings where key = ?').get('default_products_seeded');
+  if (initialized) return;
+
+  const productCount = (database.prepare('select count(*) as count from products').get() as { count: number }).count;
+  if (productCount === 0) {
+    const insertProduct = database.prepare('insert into products (id, data) values (?, ?)');
+    for (const product of PRODUCTS) insertProduct.run(product.id, JSON.stringify(product));
+  }
+  database.prepare('insert into app_settings (key, value) values (?, ?)').run('default_products_seeded', 'true');
+});
+seedDefaultProducts();
+
 const app = express();
 const httpServer = createHttpServer(app);
 const sessions = new Map<string, number>();
 const sessionCookie = 'blog_admin_session';
 const sessionLifetimeMs = 12 * 60 * 60 * 1000;
 const secureCookie = process.env.NODE_ENV === 'production';
+if (
+  secureCookie &&
+  (!process.env.ADMIN_EMAIL?.trim() ||
+    process.env.ADMIN_EMAIL.trim().toLowerCase() === 'admin@example.com' ||
+    !process.env.ADMIN_PASSWORD ||
+    process.env.ADMIN_PASSWORD === 'replace-with-a-long-random-password' ||
+    process.env.ADMIN_PASSWORD.length < 24)
+) {
+  throw new Error('Production requires a real ADMIN_EMAIL and a unique ADMIN_PASSWORD of at least 24 characters.');
+}
 
 app.disable('x-powered-by');
 app.use((_request, response, next) => {
@@ -181,6 +210,25 @@ const isVideo = (value: unknown): value is VideoItem =>
 const isGalleryImage = (value: unknown): value is GalleryImage =>
   hasStringFields(value, ['id', 'url']);
 
+const isShopProduct = (value: unknown): value is ShopProduct =>
+  hasStringFields(value, ['id', 'title', 'category', 'priceLabel', 'description', 'image']) &&
+  typeof value.price === 'number' && Number.isFinite(value.price) &&
+  typeof value.rating === 'number' && Number.isFinite(value.rating) &&
+  typeof value.reviewsCount === 'number' && Number.isFinite(value.reviewsCount) &&
+  typeof value.inStock === 'boolean' &&
+  Array.isArray(value.images) && value.images.length > 0 && value.images.every((image) => typeof image === 'string') &&
+  Array.isArray(value.features) && value.features.every((feature) => typeof feature === 'string') &&
+  (value.videoUrls === undefined || (
+    Array.isArray(value.videoUrls) &&
+    (value.videoUrls.length === 0 || value.videoUrls.length >= 2) &&
+    value.videoUrls.every((url) => typeof url === 'string')
+  )) &&
+  (value.videoUrl === undefined || (
+    typeof value.videoUrl === 'string' &&
+    Array.isArray(value.videoUrls) &&
+    value.videoUrls.length >= 2
+  ));
+
 app.get('/api/content', (_request, response) => {
   const posts = queryData<Post>('select data from posts order by created_at desc');
   const comments = database.prepare('select post_id, data from post_comments order by created_at asc')
@@ -195,6 +243,7 @@ app.get('/api/content', (_request, response) => {
     posts: posts.map((post) => ({ ...post, comments: commentsByPost.get(post.id) ?? [] })),
     videos: queryData<VideoItem>('select data from videos order by created_at desc'),
     galleryImages: queryData<GalleryImage>('select data from gallery_images order by created_at desc'),
+    products: queryData<ShopProduct>('select data from products order by created_at desc'),
   });
 });
 
@@ -300,6 +349,24 @@ app.post('/api/gallery', requireAdmin, (request, response) => {
 
 app.delete('/api/gallery/:id', requireAdmin, (request, response) => {
   database.prepare('delete from gallery_images where id = ?').run(request.params.id);
+  response.json({ success: true });
+});
+
+app.post('/api/products', requireAdmin, (request, response) => {
+  const product = request.body as ShopProduct;
+  if (!isShopProduct(product)) {
+    response.status(400).json({ error: 'A product requires a title, image link, description, and valid product details.' });
+    return;
+  }
+  database.prepare(`
+    insert into products (id, data, created_at) values (?, ?, ?)
+    on conflict(id) do update set data = excluded.data
+  `).run(product.id, JSON.stringify(product), Date.now());
+  response.json({ success: true });
+});
+
+app.delete('/api/products/:id', requireAdmin, (request, response) => {
+  database.prepare('delete from products where id = ?').run(request.params.id);
   response.json({ success: true });
 });
 
