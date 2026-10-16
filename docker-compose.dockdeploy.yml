@@ -1,0 +1,28 @@
+services:
+  blog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DB_PATH: /data/blog.sqlite
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      FASTLIPA_API_TOKEN: ${FASTLIPA_API_TOKEN:-}
+      BUNNY_CDN_TOKEN_KEY: ${BUNNY_CDN_TOKEN_KEY:-}
+      PREMIUM_MEDIA_PROTECTION_CONFIRMED: ${PREMIUM_MEDIA_PROTECTION_CONFIRMED:-false}
+    expose:
+      - "3000"
+    volumes:
+      - blog_data:/data
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  blog_data:

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { LoaderCircle, LockKeyhole, Share2, ThumbsUp, X } from 'lucide-react';
 import type { Post, VideoItem } from '../types';
 import {
+  abandonPremiumPayment,
+  ApiRequestError,
   createPremiumPayment,
   fetchPremiumAccessStatus,
   fetchPremiumPaymentStatus,
@@ -10,6 +12,17 @@ import {
 } from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
 import { Sidebar } from './Sidebar';
+
+const getPaymentInitiationMessage = (error: unknown) => {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 400) return 'Namba ya simu si sahihi. Jaribu namba nyingine.';
+    if (error.status === 429) return 'Umejaribu mara nyingi. Subiri kidogo kisha ujaribu tena.';
+    if (error.status === 503 && /not configured|not been confirmed|delivery/i.test(error.message)) {
+      return 'Malipo hayapatikani kwa sasa. Tafadhali jaribu tena baadaye.';
+    }
+  }
+  return 'Imeshindikana kuanzisha malipo. Jaribu namba nyingine.';
+};
 
 interface VideosPageProps {
   videos: VideoItem[];
@@ -55,7 +68,6 @@ export const VideosPage: React.FC<VideosPageProps> = ({
         setPaymentReference(status.pendingReference);
         setPaymentPhase('pending');
         setPaymentMessage('Subiri uthibitisho wa malipo kwenye simu yako.');
-        if (selectedVideo?.isPremium) setIsPurchaseOpen(true);
       }
     }).catch(() => {
       if (active) setAccessStatus({ active: false, expiresAt: null, pendingReference: null });
@@ -64,6 +76,15 @@ export const VideosPage: React.FC<VideosPageProps> = ({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isPurchaseOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsPurchaseOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isPurchaseOpen]);
 
   useEffect(() => {
     if (!paymentReference) return;
@@ -82,14 +103,22 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           return;
         }
         if (payment.status === 'failed' || payment.status === 'cancelled' || payment.status === 'refunded') {
-          setPaymentMessage('Malipo hayajakamilika. Tafadhali jaribu tena.');
+          setPaymentMessage('Malipo hayajathibitishwa. Jaribu namba nyingine.');
           setPaymentPhase('error');
           setPaymentReference(null);
           return;
         }
         setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako. Tunakagua hali ya malipo...');
-      } catch {
-        if (active) setPaymentMessage('Bado tunasubiri uthibitisho kutoka FastLipa...');
+      } catch (error) {
+        if (!active) return;
+        if (error instanceof ApiRequestError && [404, 502].includes(error.status)) {
+          void abandonPremiumPayment(paymentReference).catch(() => undefined);
+          setPaymentReference(null);
+          setPaymentPhase('error');
+          setPaymentMessage('Ombi halikuthibitishwa. Jaribu namba nyingine.');
+          return;
+        }
+        setPaymentMessage('Bado tunasubiri uthibitisho wa malipo...');
       }
       if (active) timer = window.setTimeout(checkPayment, 4000);
     };
@@ -156,21 +185,31 @@ export const VideosPage: React.FC<VideosPageProps> = ({
       setPaymentPhase('pending');
       setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako.');
     } catch (error) {
-      try {
-        const status = await fetchPremiumAccessStatus();
-        if (status.pendingReference) {
-          setPaymentReference(status.pendingReference);
-          setPaymentPhase('pending');
-          setPaymentMessage('Tunakagua ombi lako la malipo.');
-          return;
-        }
-      } catch {
-        // Show the original payment error below.
-      }
       setPaymentPhase('error');
-      setPaymentMessage(error instanceof Error ? error.message : 'Imeshindikana kuanzisha malipo.');
+      setPaymentMessage(getPaymentInitiationMessage(error));
     }
   };
+
+  const handleCancelPayment = (closeModal: boolean) => {
+    const reference = paymentReference;
+    if (reference) void abandonPremiumPayment(reference).catch(() => undefined);
+    setPaymentReference(null);
+    setPaymentPhase('idle');
+    setPaymentMessage(reference
+      ? 'Ombi limeondolewa hapa. Ikiwa bado simu inasubiri, likatae kwenye simu kabla ya kuanzisha jingine.'
+      : '');
+    setPhone('');
+    if (closeModal) setIsPurchaseOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isPurchaseOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') handleCancelPayment(true);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isPurchaseOpen, paymentReference]);
 
   const openPurchase = () => {
     setIsPurchaseOpen(true);
@@ -293,24 +332,31 @@ export const VideosPage: React.FC<VideosPageProps> = ({
 
       {isPurchaseOpen && selectedVideo?.isPremium && (
         <div className="catalog-video-modal-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && paymentPhase !== 'starting' && paymentPhase !== 'pending') setIsPurchaseOpen(false);
+          if (event.target === event.currentTarget) handleCancelPayment(true);
         }}>
           <section className="catalog-video-purchase-modal" role="dialog" aria-modal="true" aria-labelledby="premium-payment-title">
-            <button type="button" className="catalog-video-modal-close" aria-label="Funga" onClick={() => setIsPurchaseOpen(false)}>
+            <button type="button" className="catalog-video-modal-close" aria-label="Funga dirisha la malipo" onClick={() => handleCancelPayment(true)}>
               <X size={20} />
             </button>
             <h2 id="premium-payment-title">Lipia kutazama video zote</h2>
             <p>Video zote za premium, video mpya kila siku</p>
             {paymentPhase === 'pending' ? (
-              <div className="catalog-video-payment-status" role="status">
-                <LoaderCircle className="animate-spin" size={20} aria-hidden="true" />
-                <span>{paymentMessage}</span>
-              </div>
+              <>
+                <div className="catalog-video-payment-status" role="status">
+                  <LoaderCircle className="animate-spin" size={20} aria-hidden="true" />
+                  <span>{paymentMessage}</span>
+                </div>
+                <p className="catalog-video-payment-note">Unaweza kufunga dirisha hili. Ili kusitisha ombi la simu, likatae kwenye simu yako.</p>
+                <button type="button" className="catalog-video-pending-close" onClick={() => handleCancelPayment(false)}>
+                  Ghairi ombi na ujaribu tena
+                </button>
+              </>
             ) : paymentPhase === 'success' ? (
               <div className="catalog-video-payment-success" role="status">{paymentMessage}</div>
             ) : (
               <form onSubmit={handlePaymentSubmit} className="catalog-video-payment-form">
                 <label htmlFor="premium-phone-number">Namba ya simu yenye pesa</label>
+                {paymentPhase === 'idle' && paymentMessage && <p className="catalog-video-payment-note" role="status">{paymentMessage}</p>}
                 <input
                   id="premium-phone-number"
                   type="tel"

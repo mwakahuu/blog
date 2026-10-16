@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 export const PREMIUM_PRICE_TZS = 3000;
 export const PREMIUM_PRODUCT_ID = 'all-premium-5h';
@@ -12,16 +12,13 @@ export const normalizeTanzanianPhone = (value: unknown): string | null => {
   return /^0[67]\d{8}$/.test(phone) ? `255${phone.slice(1)}` : null;
 };
 
-export const verifyFastLipaSignature = (
-  rawBody: Buffer,
-  signature: string | undefined,
-  secret: string | undefined,
-): boolean => {
-  if (!secret || !signature) return false;
-  const expected = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`;
-  const providedBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expected);
-  return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
+export const normalizeTzsAmount = (value: unknown): number | null => {
+  const amount = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && /^\d+$/.test(value.trim())
+      ? Number(value.trim())
+      : NaN;
+  return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
 };
 
 export const getEntitlementWindow = (

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,10 +8,10 @@ import {
   createBunnyTokenUrl,
   getEntitlementWindow,
   normalizeTanzanianPhone,
+  normalizeTzsAmount,
   publicVideo,
   resolveAllowedMediaUrl,
   rewriteHlsManifest,
-  verifyFastLipaSignature,
 } from '../src/premiumAccess';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,14 +24,13 @@ test('accepts only local Tanzanian mobile numbers beginning with 06 or 07', () =
   assert.equal(normalizeTanzanianPhone('071234567'), null);
 });
 
-test('verifies FastLipa webhook signatures against the exact raw body', () => {
-  const rawBody = Buffer.from('{"event":"payment.completed"}');
-  const secret = 'test-webhook-secret';
-  const signature = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`;
-  assert.equal(verifyFastLipaSignature(rawBody, signature, secret), true);
-  assert.equal(verifyFastLipaSignature(rawBody, signature, 'wrong-secret'), false);
-  assert.equal(verifyFastLipaSignature(rawBody, undefined, secret), false);
-  assert.equal(verifyFastLipaSignature(rawBody, signature, undefined), false);
+test('normalizes FastLipa TZS amounts returned as either numbers or digit strings', () => {
+  assert.equal(normalizeTzsAmount(3000), 3000);
+  assert.equal(normalizeTzsAmount('3000'), 3000);
+  assert.equal(normalizeTzsAmount(' 3000 '), 3000);
+  assert.equal(normalizeTzsAmount('3000.00'), null);
+  assert.equal(normalizeTzsAmount('invalid'), null);
+  assert.equal(normalizeTzsAmount(Number.MAX_SAFE_INTEGER + 1), null);
 });
 
 test('starts first entitlement now and extends an active entitlement from its expiry', () => {

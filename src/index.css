@@ -632,6 +632,31 @@ button.catalog-item-title {
   color: #065f46;
 }
 
+.catalog-video-payment-note {
+  margin: -8px 0 12px;
+  color: #737373;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.catalog-video-pending-close {
+  display: block;
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid #bdbdbd;
+  border-radius: 6px;
+  background: #fff;
+  color: #292929;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.catalog-video-pending-close:hover {
+  background: #f1f3f4;
+}
+
 .catalog-video-purchase-modal small {
   display: block;
   margin-top: 16px;
@@ -677,6 +702,20 @@ button.catalog-item-title {
 .app-shell[data-theme="dark"] .catalog-video-payment-status {
   background: #29384d;
   color: #e2e8f0;
+}
+
+.app-shell[data-theme="dark"] .catalog-video-payment-note {
+  color: #cbd5e1;
+}
+
+.app-shell[data-theme="dark"] .catalog-video-pending-close {
+  border-color: #475569;
+  background: #202d40;
+  color: #e2e8f0;
+}
+
+.app-shell[data-theme="dark"] .catalog-video-pending-close:hover {
+  background: #29384d;
 }
 
 .app-shell[data-theme="dark"] .catalog-video-card {

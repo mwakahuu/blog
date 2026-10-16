@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import net from 'node:net';
@@ -58,8 +58,6 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
       ADMIN_EMAIL: 'admin@test.example',
       ADMIN_PASSWORD: 'test-only-admin-password-long-enough',
       FASTLIPA_API_TOKEN: 'test-provider-token',
-      FASTLIPA_WEBHOOK_SECRET: 'test-webhook-secret',
-      PUBLIC_APP_URL: 'https://utamu.chombezo.online',
       BUNNY_CDN_TOKEN_KEY: 'test-bunny-token-key',
       PREMIUM_MEDIA_PROTECTION_CONFIRMED: 'true',
     },
@@ -138,6 +136,15 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
   assert.equal((await request(`/api/videos/${premiumVideos[0]}/playback`)).status, 403);
 
+  const abandonResponse = await request('/api/payments/abandon', {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reference: pending.reference }),
+  });
+  assert.equal(abandonResponse.status, 200);
+  assert.equal((await abandonResponse.json() as { abandoned: boolean }).abandoned, true);
+  assert.equal((await (await request('/api/access/status')).json() as { pendingReference: string | null }).pendingReference, null);
+
   const cancelledResponse = await request('/api/payments/create', {
     method: 'POST',
     headers: { Origin: origin, 'Content-Type': 'application/json' },
@@ -146,6 +153,16 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   const cancelled = await cancelledResponse.json() as { reference: string };
   const cancelledStatus = await request(`/api/payments/status/${encodeURIComponent(cancelled.reference)}`);
   assert.equal((await cancelledStatus.json() as { status: string }).status, 'cancelled');
+  assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
+
+  const failedResponse = await request('/api/payments/create', {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: '0692345678' }),
+  });
+  const failed = await failedResponse.json() as { reference: string };
+  const failedStatus = await request(`/api/payments/status/${encodeURIComponent(failed.reference)}`);
+  assert.equal((await failedStatus.json() as { status: string }).status, 'failed');
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
 
   const paidResponse = await request('/api/payments/create', {
@@ -186,42 +203,14 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(segmentResponse.headers.get('content-range'), 'bytes 0-1/4');
 
   const databaseForAssertions = new Database(databasePath);
-  const paymentRow = databaseForAssertions.prepare('select id, provider_transaction_id from payments where reference = ?')
-    .get(paid.reference) as { id: string; provider_transaction_id: string };
+  const paymentRow = databaseForAssertions.prepare('select id from payments where reference = ?')
+    .get(paid.reference) as { id: string };
   const entitlementCount = (databaseForAssertions.prepare('select count(*) as count from entitlements').get() as { count: number }).count;
-  const webhookBody = JSON.stringify({
-    event: 'payment.completed',
-    timestamp: new Date().toISOString(),
-    data: { tranid: paymentRow.provider_transaction_id, reference: paid.reference, payment_status: 'COMPLETED', amount: 3000 },
-  });
-  const invalidWebhook = await request('/api/payments/webhook', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: webhookBody,
-  });
-  assert.equal(invalidWebhook.status, 401);
-  const signature = `sha256=${createHmac('sha256', 'test-webhook-secret').update(webhookBody).digest('hex')}`;
-  const repeatedWebhook = await request('/api/payments/webhook', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-FastLipa-Signature': signature },
-    body: webhookBody,
-  });
-  assert.equal(repeatedWebhook.status, 200);
+  const repeatedStatusChecks = await Promise.all([1, 2].map(() =>
+    request(`/api/payments/status/${encodeURIComponent(paid.reference)}`)));
+  assert.ok(repeatedStatusChecks.every((response) => response.status === 200));
   assert.equal((databaseForAssertions.prepare('select count(*) as count from entitlements').get() as { count: number }).count, entitlementCount);
-  assert.equal((await request(`/api/payments/status/${encodeURIComponent(paid.reference)}`)).status, 200);
   assert.equal((await request(`/api/payments/status/not-this-browser`)).status, 404);
-
-  const mismatchedWebhookBody = JSON.stringify({
-    event: 'payment.completed',
-    data: { tranid: paymentRow.provider_transaction_id, reference: paid.reference, amount: 2900 },
-  });
-  const mismatchedSignature = `sha256=${createHmac('sha256', 'test-webhook-secret').update(mismatchedWebhookBody).digest('hex')}`;
-  const mismatchedWebhook = await request('/api/payments/webhook', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-FastLipa-Signature': mismatchedSignature },
-    body: mismatchedWebhookBody,
-  });
-  assert.equal(mismatchedWebhook.status, 404);
 
   const extensionResponse = await request('/api/payments/create', {
     method: 'POST',
@@ -229,19 +218,16 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
     body: JSON.stringify({ phone: '0712345678' }),
   });
   const extension = await extensionResponse.json() as { reference: string };
-  const extensionPayment = databaseForAssertions.prepare('select id, provider_transaction_id from payments where reference = ?')
-    .get(extension.reference) as { id: string; provider_transaction_id: string };
-  const extensionWebhookBody = JSON.stringify({
-    event: 'payment.completed',
-    data: { tranid: extensionPayment.provider_transaction_id, reference: extension.reference, amount: 3000 },
-  });
-  const extensionSignature = `sha256=${createHmac('sha256', 'test-webhook-secret').update(extensionWebhookBody).digest('hex')}`;
-  const duplicateCallbacks = await Promise.all([1, 2].map(() => request('/api/payments/webhook', {
+  const extensionAbandon = await request('/api/payments/abandon', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-FastLipa-Signature': extensionSignature },
-    body: extensionWebhookBody,
-  })));
-  assert.ok(duplicateCallbacks.every((response) => response.status === 200));
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reference: extension.reference }),
+  });
+  assert.equal(extensionAbandon.status, 200);
+  assert.equal((await extensionAbandon.json() as { abandoned: boolean }).abandoned, true);
+  const extensionStatusChecks = await Promise.all([1, 2].map(() =>
+    request(`/api/payments/status/${encodeURIComponent(extension.reference)}`)));
+  assert.ok(extensionStatusChecks.every((response) => response.status === 200));
   assert.equal((databaseForAssertions.prepare('select count(*) as count from entitlements').get() as { count: number }).count, entitlementCount);
   const entitlement = databaseForAssertions.prepare('select id, expires_at from entitlements where payment_id = ?')
     .get(paymentRow.id) as { id: string; expires_at: number };
