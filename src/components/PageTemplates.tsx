@@ -523,7 +523,7 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
             Explore documentation and download starter themes from the catalog.
           </p>
           <a
-            href="https://wa.me/255623709042?text=Habari,%20nahitaji%20msaada%20wa%20CHOMBEZO"
+            href="https://wa.me/255794406730?text=Habari,%20nahitaji%20msaada%20wa%20CHOMBEZO"
             target="_blank"
             rel="noreferrer"
             className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider px-6 py-3 transition-colors shadow-sm"
@@ -596,10 +596,10 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
               Tueleze biashara yako inafanya nini, unawalenga wateja gani na ungependa website ikusaidie kufanikisha nini. Tutajadili mahitaji, muundo unaofaa na gharama kabla ya kuanza kazi.
             </p>
             <p className="mt-5 text-base font-bold text-slate-900">
-              WhatsApp: 0623709042
+              WhatsApp: 0794406730
             </p>
             <a
-              href={`https://wa.me/255623709042?text=${encodeURIComponent('Habari, ningependa kujadili website kwa ajili ya biashara yangu. Biashara yangu ni:')}`}
+              href={`https://wa.me/255794406730?text=${encodeURIComponent('Habari, ningependa kujadili website kwa ajili ya biashara yangu. Biashara yangu ni:')}`}
               target="_blank"
               rel="noreferrer"
               className="mt-4 inline-flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm tracking-wide px-6 py-3 transition-colors"

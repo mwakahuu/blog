@@ -71,6 +71,23 @@ cd /opt/blog
 
 For later deployments, run `git pull` from this directory before rebuilding.
 
+If you already have articles or admin-published content in a local `data/blog.sqlite`, it is not included in Git. Before the first VPS start, make a consistent SQLite backup from the machine that owns that database and copy it to the server. Do not copy a live database together with its `-wal` or `-shm` files.
+
+```sh
+node --input-type=module -e "import Database from 'better-sqlite3'; const db = new Database('data/blog.sqlite', { readonly: true }); await db.backup('/tmp/blog-production.sqlite'); db.close();"
+scp /tmp/blog-production.sqlite YOUR_SSH_USER@YOUR_SERVER:/tmp/blog-production.sqlite
+```
+
+On the VPS, after creating `/opt/blog/data` and before starting Compose, install the backup as the persistent app database:
+
+```sh
+sudo mkdir -p /opt/blog/data
+sudo cp /tmp/blog-production.sqlite /opt/blog/data/blog.sqlite
+sudo chown 1000:1000 /opt/blog/data/blog.sqlite
+```
+
+Skip this transfer for a genuinely new site; startup will create the schema and seed the starter videos, gallery, and products. The built-in article seed list is empty, so publish articles in the admin panel or import the existing database.
+
 ### 4. Configure private admin credentials
 
 Generate a password on the VPS and keep it private:
@@ -83,11 +100,20 @@ Create `.env` in `/opt/blog` with your real domain, admin email, and generated p
 
 ```dotenv
 DOMAIN=utamu.chombezo.online
-ADMIN_EMAIL=you@example.com
-ADMIN_PASSWORD=paste-your-generated-password-here
+ADMIN_EMAIL=your-real-email@example.com
+ADMIN_PASSWORD=paste-a-generated-password-of-at-least-24-characters
+APP_URL=https://utamu.chombezo.online
+PUBLIC_APP_URL=https://utamu.chombezo.online
+FASTLIPA_API_TOKEN=
+FASTLIPA_WEBHOOK_SECRET=
+BUNNY_CDN_TOKEN_KEY=
+PREMIUM_MEDIA_PROTECTION_CONFIRMED=false
+DB_PATH=/data/blog.sqlite
+HOST=0.0.0.0
+PORT=3000
 ```
 
-Replace the example domain and email. Do not commit `.env` or share its contents. The sample password currently shown in a development `.env` is not secure; replace it before exposing the site publicly. Restrict the file:
+Replace the email and password with your own values. `FASTLIPA_API_TOKEN` and `FASTLIPA_WEBHOOK_SECRET` must be set before payments can work. Generate the webhook secret through FastLipa's authenticated API and configure `https://utamu.chombezo.online/api/payments/webhook` in its Developer settings. `BUNNY_CDN_TOKEN_KEY` is only needed when premium sources use Bunny token authentication. Keep `PREMIUM_MEDIA_PROTECTION_CONFIRMED=false` until you have confirmed that unauthorized direct requests to each premium media origin are denied; setting it to `true` is required before the production checkout route will accept charges. Do not commit `.env` or share its contents. Restrict the file:
 
 ```sh
 chmod 600 .env
@@ -106,7 +132,7 @@ sudo docker compose ps
 
 SQLite does not need a separately installed database server or a manual database-creation command. On first startup, the app creates `data/blog.sqlite`, creates its tables, and seeds the initial product, video, and gallery records. `docker-compose.yml` mounts host `./data` into the app at `/data`, so the database survives container rebuilds and restarts. Keep this directory on persistent VPS storage.
 
-Caddy will become healthy and request HTTPS after DNS points to the VPS and ports `80` and `443` are reachable. Check startup logs with `sudo docker compose logs -f blog caddy`.
+Caddy will become healthy and request HTTPS after DNS points to the VPS and ports `80` and `443` are reachable. Check startup logs with `sudo docker compose logs -f blog caddy`. Once healthy, confirm `https://utamu.chombezo.online/admin` and `https://utamu.chombezo.online/api/content` respond successfully. The FastLipa webhook should return `401` to a test request without a signature; that confirms the request reaches the Express handler without accepting an unsigned callback.
 
 ### 6. Open the admin panel
 

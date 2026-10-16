@@ -27,7 +27,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   const handleAgiza = (product: ShopProduct) => {
     const options = product.features.length ? `\nChaguo: ${product.features.join(', ')}` : '';
     const message = `Habari, nahitaji kuagiza: ${product.title} (Bei: ${product.priceLabel})${options}`;
-    const whatsappUrl = `https://wa.me/255623709042?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/255794406730?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -42,7 +42,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 Bei zote ni kwa Shilingi za Tanzania (TSh). Chagua bidhaa kuona maelezo zaidi.
               </p>
               <a
-                href="https://wa.me/255623709042?text=Habari,%20nahitaji%20maelezo%20kuhusu%20bidhaa%20za%20dukani"
+                href="https://wa.me/255794406730?text=Habari,%20nahitaji%20maelezo%20kuhusu%20bidhaa%20za%20dukani"
                 target="_blank"
                 rel="noreferrer"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wide px-4 py-2.5 transition-colors shadow-sm self-start shrink-0"
@@ -99,7 +99,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                       type="button"
                       onClick={() => handleAgiza(product)}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wide px-2.5 py-1.5 transition-colors cursor-pointer shrink-0"
-                      title="Agiza kupitia WhatsApp 0623709042"
+                      title="Agiza kupitia WhatsApp 0794406730"
                     >
                       Agiza
                     </button>

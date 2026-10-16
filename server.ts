@@ -314,9 +314,8 @@ const setPremiumCookie = (response: Response, token: string, expiresAt: number) 
 
 const sameOriginPaymentRequest: RequestHandler = (request, response, next) => {
   const originHeader = request.get('origin');
-  const configuredPublicUrl = process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
   try {
-    const expectedHost = configuredPublicUrl ? new URL(configuredPublicUrl).host : request.get('host');
+    const expectedHost = request.get('host');
     const origin = originHeader ? new URL(originHeader) : null;
     const validProtocol = origin && (secureCookie ? origin.protocol === 'https:' : ['http:', 'https:'].includes(origin.protocol));
     if (!origin || !validProtocol || origin.host !== expectedHost) {
@@ -453,11 +452,11 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     response.status(503).json({ error: 'Mobile money payment is not configured yet.' });
     return;
   }
-  if (secureCookie && (
+  if (
     !process.env.FASTLIPA_WEBHOOK_SECRET?.trim() ||
     !(process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim()) ||
     process.env.PREMIUM_MEDIA_PROTECTION_CONFIRMED !== 'true'
-  )) {
+  ) {
     response.status(503).json({ error: 'Premium payment is temporarily unavailable until secure payment and video delivery are configured.' });
     return;
   }

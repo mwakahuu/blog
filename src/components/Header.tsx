@@ -25,11 +25,11 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome, onAdClick }) => 
         {/* Top Static Banner Advertisement */}
         <div className="w-full lg:max-w-[728px] xl:max-w-[840px] h-[90px] sm:h-[105px] relative rounded-xs overflow-hidden shadow-lg border border-slate-700/60 bg-black">
           <a
-            href="https://wa.me/255623709042?text=Habari,%20nahitaji%20maelezo%20kuhusu%20tangazo%20lako"
+            href="https://wa.me/255794406730?text=Habari,%20nahitaji%20maelezo%20kuhusu%20tangazo%20lako"
             target="_blank"
             rel="noreferrer"
             className="w-full h-full block group"
-            title="Bofya kuwasiliana kupitia WhatsApp 0623709042"
+            title="Bofya kuwasiliana kupitia WhatsApp 0794406730"
           >
             <img
               src="https://i.ibb.co/fVNYGQf8/miliki-website-yako-ya-xxx-leo-2.png"

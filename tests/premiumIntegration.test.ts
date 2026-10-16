@@ -59,7 +59,7 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
       ADMIN_PASSWORD: 'test-only-admin-password-long-enough',
       FASTLIPA_API_TOKEN: 'test-provider-token',
       FASTLIPA_WEBHOOK_SECRET: 'test-webhook-secret',
-      PUBLIC_APP_URL: origin,
+      PUBLIC_APP_URL: 'https://utamu.chombezo.online',
       BUNNY_CDN_TOKEN_KEY: 'test-bunny-token-key',
       PREMIUM_MEDIA_PROTECTION_CONFIRMED: 'true',
     },

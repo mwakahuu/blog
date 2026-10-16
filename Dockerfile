@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run lint && npm run build
+RUN npm run lint && npm run build && npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runtime
 

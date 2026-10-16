@@ -232,7 +232,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                     <span>{selectedVideo.likes || 'Like'}</span>
                   </button>
                   <a
-                    href={`https://wa.me/255623709042?text=${encodeURIComponent('Tazama video hii: ' + selectedVideo.title)}`}
+                    href={`https://wa.me/255794406730?text=${encodeURIComponent('Tazama video hii: ' + selectedVideo.title)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="catalog-video-action-button"

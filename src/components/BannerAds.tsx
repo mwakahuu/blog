@@ -17,7 +17,7 @@ export const BannerAd: React.FC<BannerAdProps> = ({ type, className = '' }) => {
   return (
     <div className={`w-full flex items-center justify-center my-4 overflow-hidden shadow-xs border border-slate-200 bg-white ${className}`}>
       <a
-        href="https://wa.me/255623709042?text=Habari,%20nahitaji%20maelezo%20kuhusu%20tangazo%20lako"
+        href="https://wa.me/255794406730?text=Habari,%20nahitaji%20maelezo%20kuhusu%20tangazo%20lako"
         target="_blank"
         rel="noreferrer"
         className="w-full flex items-center justify-center block hover:opacity-95 transition-opacity"

@@ -85,12 +85,12 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
             <div className="pt-1">
               <a
-                href="https://wa.me/255623709042?text=Habari,%20nahitaji%20mawasiliano%20na%20CHOMBEZO"
+                href="https://wa.me/255794406730?text=Habari,%20nahitaji%20mawasiliano%20na%20CHOMBEZO"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-xs transition-colors"
               >
-                <span>WhatsApp: 0623709042</span>
+                <span>WhatsApp: 0794406730</span>
               </a>
             </div>
           </div>

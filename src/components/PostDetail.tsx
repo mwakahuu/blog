@@ -167,7 +167,7 @@ export const PostDetail: React.FC<PostDetailProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={`https://wa.me/255623709042?text=${encodeURIComponent('Soma hii makala: ' + post.title)}`}
+            href={`https://wa.me/255794406730?text=${encodeURIComponent('Soma hii makala: ' + post.title)}`}
             target="_blank"
             rel="noreferrer"
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5"
