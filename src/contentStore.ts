@@ -7,6 +7,13 @@ type ContentResponse = {
   products: ShopProduct[];
 };
 
+export class ApiRequestError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 export type LegacyContent = {
   posts: Post[];
   videos: VideoItem[];
@@ -37,7 +44,7 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
 
   const result = await response.json().catch(() => ({})) as { error?: string };
   if (!response.ok) {
-    throw new Error(result.error || `Request failed (${response.status}).`);
+    throw new ApiRequestError(result.error || `Request failed (${response.status}).`, response.status);
   }
   return result as T;
 };
@@ -52,6 +59,12 @@ export const createPremiumPayment = (phone: string) =>
   request<{ reference: string; status: 'pending'; amount: number; currency: 'TZS' }>('/payments/create', {
     method: 'POST',
     body: JSON.stringify({ phone }),
+  });
+
+export const abandonPremiumPayment = (reference: string) =>
+  request<{ abandoned: boolean }>('/payments/abandon', {
+    method: 'POST',
+    body: JSON.stringify({ reference }),
   });
 
 export const fetchPremiumPaymentStatus = (reference: string) =>

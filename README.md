@@ -2,6 +2,58 @@
 
 This project stores its content in a local SQLite database on the server. It does not require Supabase or another hosted database.
 
+## Deploy with Dockdeploy
+
+Use this path when deploying through the Dockdeploy control panel shown in the setup guide. Select **Git + compose**, not **Git repository**: the Dockerfile-only option in that form does not mount persistent storage, so admin-published content could disappear when its container is replaced. This Dockdeploy Compose stack keeps `/data/blog.sqlite` in a named Docker volume and leaves HTTPS/domain routing to Dockdeploy, so it does not start a competing Caddy service.
+
+In **New deployment**, enter:
+
+| Field | Value |
+| --- | --- |
+| Name | `chombezo` |
+| Server | Your configured VPS |
+| Source | **Git + compose** |
+| Repository | Your GitHub repository URL |
+| Branch or tag | The branch containing this deployment file |
+| Compose file | `docker-compose.dockdeploy.yml` |
+| Container port, if requested | `3000` |
+
+If the Git + compose screen does not offer a Compose-file path, configure it to use `docker-compose.dockdeploy.yml`; do not use the existing `docker-compose.yml` for this panel because that file starts its own Caddy service for standalone VPS deployment.
+
+In the deployment's **Environment variables** field, add one `KEY=value` per line. Use your own email and a generated password of at least 24 characters. Paste the FastLipa API token from your private dashboard; do not paste it into Git or this chat. Include the Bunny signing key only if your premium source is Bunny token-authenticated.
+
+```dotenv
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=replace-with-a-generated-password-at-least-24-characters
+FASTLIPA_API_TOKEN=your-private-fastlipa-api-token
+PREMIUM_MEDIA_PROTECTION_CONFIRMED=false
+BUNNY_CDN_TOKEN_KEY=
+```
+
+Dockdeploy should route the deployment's **container port 3000** through its public proxy. After creating the deployment, add `utamu.chombezo.online` in Dockdeploy's domain settings, enable its HTTPS certificate, and point the domain's DNS `A` record to the VPS IPv4 address. Do not add another Caddy container for this deployment. The compose file creates a persistent named volume for SQLite; do not delete that volume when redeploying or removing the application.
+
+Before enabling checkout, ensure every premium media origin denies unauthorized direct access, then change `PREMIUM_MEDIA_PROTECTION_CONFIRMED=false` to `true` in Dockdeploy's environment settings and redeploy. Payment confirmation is polled from FastLipa's authenticated status API; no webhook or webhook secret is needed. A `503` before this flag is enabled is intentional and prevents payment for media that is still publicly accessible.
+
+After deploy, confirm `https://utamu.chombezo.online/admin`, `/api/content`, and `/api/access/status` return `200`. Sign in at `/admin`, publish one article, video, gallery item, and product, and confirm each appears publicly. Redeploy once and confirm the records remain; this verifies Dockdeploy preserved its volume.
+
+Existing content in the current workspace database is not included in Git. If `data/blog.sqlite` exists and contains articles or products you need to keep, make a consistent backup before deploying:
+
+```sh
+node --input-type=module -e "import Database from 'better-sqlite3'; const db = new Database('data/blog.sqlite', { readonly: true }); await db.backup('/tmp/blog-production.sqlite'); db.close();"
+scp /tmp/blog-production.sqlite YOUR_SSH_USER@YOUR_SERVER:/tmp/blog-production.sqlite
+```
+
+After the Dockdeploy volume has been created, stop the app from the panel, find the volume name with `sudo docker volume ls`, then copy the backup into that named volume (replace `DOCKDEPLOY_BLOG_VOLUME` with its actual name):
+
+```sh
+sudo docker run --rm \
+	-v DOCKDEPLOY_BLOG_VOLUME:/data \
+	-v /tmp/blog-production.sqlite:/backup.sqlite:ro \
+	alpine:3.20 sh -c 'cp /backup.sqlite /data/blog.sqlite && chown 1000:1000 /data/blog.sqlite'
+```
+
+Start the app again from Dockdeploy. SQLite migrations run on startup. Skip this transfer for a new site; its initial article seed list is empty, so publish articles in the admin panel.
+
 ## Run locally
 
 ```sh
@@ -24,29 +76,36 @@ Vercel is not supported by the current deployment architecture. This project nee
 
 In **Admin Panel → Videos**, mark each new or edited video as Free or Premium. Videos are free by default. A visitor selecting a premium video sees the 3,000 TZS mobile-money prompt; a verified payment grants access to every premium video for five hours from provider confirmation. Enter a local Tanzanian mobile number beginning with `06` or `07`. No viewer account or password is created.
 
-The server creates a pending FastLipa collection, then verifies completion through FastLipa's authenticated transaction-status endpoint. It also accepts FastLipa webhooks only when the raw-body HMAC signature is valid. Completion, entitlement extension, and payment updates are idempotent and transactional. The browser receives an HttpOnly opaque cookie; only its SHA-256 hash is stored. The additive migration in `migrations/001_premium_access.sql` runs automatically at server startup and does not alter existing content tables. Back up `data/blog.sqlite` before deploying.
+The server creates a pending FastLipa collection, then verifies completion by polling FastLipa's authenticated transaction-status endpoint with the private API token. Status polling validates the provider transaction ID, final status, and amount before granting access. Completion, entitlement extension, and payment updates are idempotent and transactional. The browser receives an HttpOnly opaque cookie; only its SHA-256 hash is stored. Versioned migrations in `migrations/` run automatically and transactionally at server startup; they add premium-payment/session tables and dismissed-payment tracking without altering existing content tables. Back up `data/blog.sqlite` before deploying.
 
 Add these server-only values to `.env` (never use a `VITE_` prefix):
 
 ```dotenv
 FASTLIPA_API_TOKEN=
-FASTLIPA_WEBHOOK_SECRET=
-PUBLIC_APP_URL=https://utamu.chombezo.online
 BUNNY_CDN_TOKEN_KEY=
 PREMIUM_MEDIA_PROTECTION_CONFIRMED=true
 ```
 
-Generate a webhook signing secret with FastLipa's authenticated `POST /v1/webhook_secret/generate` endpoint and store the returned value in `FASTLIPA_WEBHOOK_SECRET`. After deploying the Express backend at the new domain, set the FastLipa Developer webhook URL to `https://utamu.chombezo.online/api/payments/webhook`; the app also sends that URL on payment creation. **The current Vercel deployment does not serve the Express webhook route and returns 404, so the new URL will work only after the backend is deployed and reachable.** The app verifies the webhook signature and independently checks transaction status, amount, reference, and provider transaction ID before granting access. FastLipa's documented status response does not include a currency field; this implementation uses the account's TZS collection amount.
+The viewer flow polls FastLipa's authenticated transaction-status endpoint; the server checks the final status, provider transaction ID, and fixed 3,000 TZS amount against its pending database record before granting access. FastLipa's status response does not include a currency field; the app uses the account's TZS collection amount.
 
 The admin may configure an HTTPS stream URL from any host. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. `BUNNY_CDN_TOKEN_KEY` is optional and is used to sign upstream URLs only for Bunny `*.b-cdn.net` sources. Other providers must either offer protected/signed origin URLs configured by the admin or otherwise keep their origin URLs private. A same-origin proxy does not make a publicly accessible provider URL private. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying unauthorized direct access is denied by the media provider. Do not reuse the Bunny key as a FastLipa secret.
 
-Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure and verify credentials and webhook delivery with the FastLipa account before production sales.
+Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure the private API token and protected video origins before production sales.
 
 This deployment runs the app and Caddy in Docker Compose. Caddy obtains and renews HTTPS certificates. The app is only reachable through Caddy, and the SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
 
 ### 1. Point a domain at the VPS
 
-Create a DNS `A` record for your domain pointing to the VPS IPv4 address. Add an `AAAA` record only if IPv6 is configured and reachable on the VPS. Allow inbound SSH, TCP ports `80` and `443`, and UDP port `443` in the VPS firewall and provider firewall.
+Create a DNS `A` record for `utamu.chombezo.online` pointing to the VPS IPv4 address. Add an `AAAA` record only if IPv6 is configured and reachable. Allow SSH, TCP ports `80` and `443`, and UDP port `443` in the provider firewall. If the VPS uses UFW, run these commands in order so SSH stays reachable:
+
+```sh
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 443/udp
+sudo ufw enable
+sudo ufw status
+```
 
 ### 2. Install Docker on Ubuntu
 
@@ -96,27 +155,26 @@ Generate a password on the VPS and keep it private:
 openssl rand -base64 36
 ```
 
-Create `.env` in `/opt/blog` with your real domain, admin email, and generated password:
+Create the private environment file from the template, generate a strong admin password, then edit the file:
 
 ```dotenv
-DOMAIN=utamu.chombezo.online
-ADMIN_EMAIL=your-real-email@example.com
-ADMIN_PASSWORD=paste-a-generated-password-of-at-least-24-characters
-APP_URL=https://utamu.chombezo.online
-PUBLIC_APP_URL=https://utamu.chombezo.online
-FASTLIPA_API_TOKEN=
-FASTLIPA_WEBHOOK_SECRET=
-BUNNY_CDN_TOKEN_KEY=
-PREMIUM_MEDIA_PROTECTION_CONFIRMED=false
-DB_PATH=/data/blog.sqlite
-HOST=0.0.0.0
-PORT=3000
+cp .env.example .env
+openssl rand -base64 36
+nano .env
 ```
 
-Replace the email and password with your own values. `FASTLIPA_API_TOKEN` and `FASTLIPA_WEBHOOK_SECRET` must be set before payments can work. Generate the webhook secret through FastLipa's authenticated API and configure `https://utamu.chombezo.online/api/payments/webhook` in its Developer settings. `BUNNY_CDN_TOKEN_KEY` is only needed when premium sources use Bunny token authentication. Keep `PREMIUM_MEDIA_PROTECTION_CONFIRMED=false` until you have confirmed that unauthorized direct requests to each premium media origin are denied; setting it to `true` is required before the production checkout route will accept charges. Do not commit `.env` or share its contents. Restrict the file:
+Set `DOMAIN=utamu.chombezo.online`. Set `ADMIN_EMAIL` to your email and paste the generated password into `ADMIN_PASSWORD`; it must be at least 24 characters. Production intentionally refuses to start with blank or sample admin credentials. Set the private `FASTLIPA_API_TOKEN` from your FastLipa dashboard. The app confirms payments by polling FastLipa's authenticated transaction-status endpoint. Payments remain disabled until the API token and media-protection confirmation are configured. `BUNNY_CDN_TOKEN_KEY` is only required when your premium videos use Bunny token authentication.
+
+For premium media, use HTTPS video URLs. Before accepting payments, make sure the media provider itself denies direct unauthorized access; the app proxy cannot make a public origin URL private. Keep `PREMIUM_MEDIA_PROTECTION_CONFIRMED=false` until you have tested the origin access rule, then set it to `true` to enable checkout. Never put secrets in `VITE_` variables, Git, or messages. Restrict the file:
 
 ```sh
 chmod 600 .env
+```
+
+Confirm Compose can read the required domain and environment before starting:
+
+```sh
+docker compose config --quiet
 ```
 
 ### 5. Create persistent storage and start the site
@@ -132,11 +190,26 @@ sudo docker compose ps
 
 SQLite does not need a separately installed database server or a manual database-creation command. On first startup, the app creates `data/blog.sqlite`, creates its tables, and seeds the initial product, video, and gallery records. `docker-compose.yml` mounts host `./data` into the app at `/data`, so the database survives container rebuilds and restarts. Keep this directory on persistent VPS storage.
 
-Caddy will become healthy and request HTTPS after DNS points to the VPS and ports `80` and `443` are reachable. Check startup logs with `sudo docker compose logs -f blog caddy`. Once healthy, confirm `https://utamu.chombezo.online/admin` and `https://utamu.chombezo.online/api/content` respond successfully. The FastLipa webhook should return `401` to a test request without a signature; that confirms the request reaches the Express handler without accepting an unsigned callback.
+Caddy will become healthy and request HTTPS after DNS points to the VPS and ports `80` and `443` are reachable. Check startup and health with:
+
+```sh
+sudo docker compose ps
+sudo docker compose logs --tail=100 blog caddy
+curl -I https://utamu.chombezo.online/admin
+curl -sS -o /dev/null -w 'content API: %{http_code}\n' https://utamu.chombezo.online/api/content
+```
+
+`/admin`, `/api/content`, and `/api/access/status` should return `200`:
+
+```sh
+curl -sS -o /dev/null -w 'access API: %{http_code}\n' https://utamu.chombezo.online/api/access/status
+```
+
+If `blog` is unhealthy, inspect its logs before exposing the site; production startup intentionally fails if the admin email/password are blank or still sample values. If Caddy cannot issue a certificate, verify the DNS record and provider firewall before retrying.
 
 ### 6. Open the admin panel
 
-Visit `https://YOUR_DOMAIN/admin` and sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the VPS `.env`. Admin changes are saved in the local SQLite database. Image and video fields store the links you provide; the linked media itself must remain available at those URLs.
+Visit `https://utamu.chombezo.online/admin` and sign in with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` from the VPS `.env`. Publish a test article, video, gallery image, and product, then verify each appears on its public page. Admin changes are saved in `/data/blog.sqlite` inside the container and persist at `/opt/blog/data/blog.sqlite` on the VPS. Image and video fields store links; the linked media must remain available at those URLs.
 
 ### 7. Update and back up
 

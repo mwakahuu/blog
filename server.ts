@@ -22,9 +22,9 @@ import {
   PREMIUM_SESSION_COOKIE,
   publicVideo,
   normalizeTanzanianPhone,
+  normalizeTzsAmount,
   resolveAllowedMediaUrl,
   rewriteHlsManifest,
-  verifyFastLipaSignature,
 } from './src/premiumAccess';
 import type { Comment, GalleryImage, Post, ShopProduct, VideoItem } from './src/types';
 
@@ -74,6 +74,13 @@ if (!premiumMigration) {
   database.transaction(() => {
     database.exec(readFileSync(path.join(projectRoot, 'migrations', '001_premium_access.sql'), 'utf-8'));
     database.prepare('insert into schema_migrations (version, applied_at) values (?, ?)').run(1, Date.now());
+  })();
+}
+const dismissedPaymentsMigration = database.prepare('select version from schema_migrations where version = ?').get(2);
+if (!dismissedPaymentsMigration) {
+  database.transaction(() => {
+    database.exec(readFileSync(path.join(projectRoot, 'migrations', '002_dismissed_payments.sql'), 'utf-8'));
+    database.prepare('insert into schema_migrations (version, applied_at) values (?, ?)').run(2, Date.now());
   })();
 }
 database.prepare('update posts set created_at = created_at * 1000 where created_at < 100000000000').run();
@@ -133,7 +140,6 @@ app.use((_request, response, next) => {
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
-app.use('/api/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use('/api', express.json({ limit: '1mb' }));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -366,7 +372,7 @@ const completePayment = (paymentId: string, providerData: Record<string, unknown
   if (
     !payment ||
     providerData.payment_status !== 'COMPLETED' ||
-    providerData.amount !== payment.amount_tzs ||
+    normalizeTzsAmount(providerData.amount) !== payment.amount_tzs ||
     typeof providerData.tranid !== 'string' ||
     (payment.provider_transaction_id && providerData.tranid !== payment.provider_transaction_id)
   ) return false;
@@ -420,6 +426,12 @@ const markPaymentCancelled = (paymentId: string) => {
   `).run(Date.now(), paymentId);
 };
 
+const markPaymentFailed = (paymentId: string) => {
+  database.prepare(`
+    update payments set status = 'failed', updated_at = ? where id = ? and status = 'pending'
+  `).run(Date.now(), paymentId);
+};
+
 const getVideo = (videoId: string): VideoItem | null => {
   const row = database.prepare('select data from videos where id = ?').get(videoId) as { data: string } | undefined;
   return row ? JSON.parse(row.data) as VideoItem : null;
@@ -431,7 +443,7 @@ app.get('/api/access/status', (request, response) => {
   const entitlement = getActiveEntitlement(current?.session ?? null);
   const pendingPayment = current
     ? database.prepare(`
-      select reference from payments where browser_session_id = ? and status = 'pending'
+      select reference from payments where browser_session_id = ? and status = 'pending' and dismissed_at is null
       order by created_at desc limit 1
     `).get(current.session.id) as { reference: string } | undefined
     : undefined;
@@ -440,6 +452,25 @@ app.get('/api/access/status', (request, response) => {
     expiresAt: entitlement ? new Date(entitlement.expires_at).toISOString() : null,
     pendingReference: pendingPayment?.reference ?? null,
   });
+});
+
+app.post('/api/payments/abandon', sameOriginPaymentRequest, (request, response) => {
+  response.setHeader('Cache-Control', 'private, no-store');
+  const current = getPremiumSession(request);
+  if (!current) {
+    response.status(401).json({ error: 'Payment session is unavailable.' });
+    return;
+  }
+  const reference = isRecord(request.body) ? request.body.reference : null;
+  if (typeof reference !== 'string' || !reference) {
+    response.status(400).json({ error: 'A payment reference is required.' });
+    return;
+  }
+  const result = database.prepare(`
+    update payments set dismissed_at = ?, updated_at = ?
+    where reference = ? and browser_session_id = ? and status = 'pending' and dismissed_at is null
+  `).run(Date.now(), Date.now(), reference, current.session.id);
+  response.json({ abandoned: result.changes > 0 });
 });
 
 app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation, async (request, response) => {
@@ -452,12 +483,8 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     response.status(503).json({ error: 'Mobile money payment is not configured yet.' });
     return;
   }
-  if (
-    !process.env.FASTLIPA_WEBHOOK_SECRET?.trim() ||
-    !(process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim()) ||
-    process.env.PREMIUM_MEDIA_PROTECTION_CONFIRMED !== 'true'
-  ) {
-    response.status(503).json({ error: 'Premium payment is temporarily unavailable until secure payment and video delivery are configured.' });
+  if (process.env.PREMIUM_MEDIA_PROTECTION_CONFIRMED !== 'true') {
+    response.status(503).json({ error: 'Protected premium video delivery has not been confirmed by the site operator.' });
     return;
   }
 
@@ -478,10 +505,16 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
 
   const paymentId = randomUUID();
   const reference = `chombezo-${randomUUID()}`;
-  database.prepare(`
-    insert into payments (id, reference, provider, amount_tzs, currency, product_id, status, created_at, updated_at, browser_session_id)
-    values (?, ?, 'fastlipa', ?, 'TZS', ?, 'pending', ?, ?, ?)
-  `).run(paymentId, reference, PREMIUM_PRICE_TZS, PREMIUM_PRODUCT_ID, now, now, sessionId);
+  database.transaction(() => {
+    database.prepare(`
+      update payments set dismissed_at = ?, updated_at = ?
+      where browser_session_id = ? and status = 'pending' and dismissed_at is null
+    `).run(now, now, sessionId);
+    database.prepare(`
+      insert into payments (id, reference, provider, amount_tzs, currency, product_id, status, created_at, updated_at, browser_session_id)
+      values (?, ?, 'fastlipa', ?, 'TZS', ?, 'pending', ?, ?, ?)
+    `).run(paymentId, reference, PREMIUM_PRICE_TZS, PREMIUM_PRODUCT_ID, now, now, sessionId);
+  })();
 
   const payload: Record<string, unknown> = {
     number: phone,
@@ -489,10 +522,6 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     reference,
     name: 'Chombezo Premium Videos',
   };
-  const publicAppUrl = process.env.PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (publicAppUrl) {
-    payload.webhook_url = new URL('/api/payments/webhook', publicAppUrl).toString();
-  }
 
   try {
     const result = await fetch('https://api.fastlipa.com/v1/transaction/create', {
@@ -538,12 +567,16 @@ app.get('/api/payments/status/:reference', async (request, response) => {
   if (payment.status === 'pending' && payment.provider_transaction_id) {
     try {
       const providerData = await readProviderTransaction(payment.provider_transaction_id);
-      if (providerData.tranid !== payment.provider_transaction_id || providerData.amount !== payment.amount_tzs) {
+      if (
+        providerData.tranid !== payment.provider_transaction_id ||
+        normalizeTzsAmount(providerData.amount) !== payment.amount_tzs
+      ) {
         response.status(502).json({ error: 'FastLipa transaction details did not match this purchase.' });
         return;
       }
       if (providerData.payment_status === 'COMPLETED') completePayment(payment.id, providerData);
       else if (providerData.payment_status === 'CANCELLED') markPaymentCancelled(payment.id);
+      else if (providerData.payment_status === 'FAILED' || providerData.payment_status === 'REJECTED') markPaymentFailed(payment.id);
     } catch {
       response.status(503).json({ error: 'Payment confirmation is temporarily unavailable.' });
       return;
@@ -562,68 +595,6 @@ app.get('/api/payments/status/:reference', async (request, response) => {
     accessActive: Boolean(entitlement),
     expiresAt: entitlement ? new Date(entitlement.expires_at).toISOString() : null,
   });
-});
-
-app.post('/api/payments/webhook', async (request, response) => {
-  const rawBody = Buffer.isBuffer(request.body) ? request.body : null;
-  const signature = request.get('X-FastLipa-Signature');
-  if (!rawBody || !verifyFastLipaSignature(rawBody, signature, process.env.FASTLIPA_WEBHOOK_SECRET)) {
-    response.status(401).send('Invalid webhook signature');
-    return;
-  }
-  let eventBody: unknown;
-  try {
-    eventBody = JSON.parse(rawBody.toString('utf8')) as unknown;
-  } catch {
-    response.status(400).send('Invalid webhook body');
-    return;
-  }
-  if (!isRecord(eventBody) || !isRecord(eventBody.data)) {
-    response.status(400).send('Invalid webhook event');
-    return;
-  }
-  const { event, data } = eventBody;
-  if (event !== 'payment.completed' && event !== 'payment.cancelled') {
-    response.status(200).send('Event ignored');
-    return;
-  }
-  if (
-    typeof data.reference !== 'string' ||
-    typeof data.tranid !== 'string' ||
-    typeof data.amount !== 'number'
-  ) {
-    response.status(400).send('Invalid transaction data');
-    return;
-  }
-  const payment = database.prepare('select * from payments where reference = ?').get(data.reference) as PaymentRow | undefined;
-  if (!payment || payment.amount_tzs !== data.amount ||
-      (payment.provider_transaction_id && payment.provider_transaction_id !== data.tranid)) {
-    response.status(404).send('Payment not found');
-    return;
-  }
-  if (payment.status === 'completed') {
-    response.status(200).send('Already processed');
-    return;
-  }
-  if (event === 'payment.cancelled') {
-    markPaymentCancelled(payment.id);
-    response.status(200).send('Cancellation recorded');
-    return;
-  }
-  try {
-    const providerData = await readProviderTransaction(data.tranid);
-    if (providerData.tranid !== data.tranid || providerData.amount !== payment.amount_tzs) {
-      response.status(400).send('Transaction details did not match');
-      return;
-    }
-    if (!completePayment(payment.id, providerData)) {
-      response.status(409).send('Payment is not confirmed');
-      return;
-    }
-    response.status(200).send('Payment confirmed');
-  } catch {
-    response.status(503).send('Payment verification is temporarily unavailable');
-  }
 });
 
 app.get('/api/admin/videos', requireAdmin, (_request, response) => {

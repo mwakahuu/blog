@@ -14,7 +14,8 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
       amount: payload.amount,
       status: payload.number === '255612345678'
         ? 'PENDING'
-        : payload.number === '255622345678' ? 'CANCELLED' : 'COMPLETED',
+        : payload.number === '255622345678' ? 'CANCELLED'
+          : payload.number === '255692345678' ? 'FAILED' : 'COMPLETED',
     });
     return Response.json({
       status: true,
@@ -33,7 +34,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
       data: {
         tranid: tranID,
         payment_status: transaction.status,
-        amount: transaction.amount,
+        amount: String(transaction.amount),
         network: 'AIRTEL',
         time: new Date().toISOString(),
       },
