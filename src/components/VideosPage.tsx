@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LoaderCircle, LockKeyhole, Share2, ThumbsUp, X } from 'lucide-react';
 import type { Post, VideoItem } from '../types';
 import {
@@ -49,6 +49,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [paymentPhase, setPaymentPhase] = useState<'idle' | 'starting' | 'pending' | 'error' | 'success'>('idle');
   const [paymentMessage, setPaymentMessage] = useState('');
+  const paymentSubmissionInProgress = useRef(false);
   const isLiked = selectedVideo ? likedVideoIds.has(selectedVideo.id) : false;
 
   useEffect(() => {
@@ -99,7 +100,6 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           setPaymentMessage('Malipo yamefanikiwa. Video zote za premium zimefunguliwa kwa saa 5.');
           setPaymentPhase('success');
           setPaymentReference(null);
-          setIsPurchaseOpen(false);
           return;
         }
         if (payment.status === 'failed' || payment.status === 'cancelled' || payment.status === 'refunded') {
@@ -175,8 +175,14 @@ export const VideosPage: React.FC<VideosPageProps> = ({
     window.scrollTo({ top: 180, behavior: 'smooth' });
   };
 
-  const handlePaymentSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleStartPayment = async () => {
+    if (paymentSubmissionInProgress.current) return;
+    if (!/^0[67]\d{8}$/.test(phone)) {
+      setPaymentPhase('error');
+      setPaymentMessage('Weka namba sahihi ya simu inayoanza na 06 au 07.');
+      return;
+    }
+    paymentSubmissionInProgress.current = true;
     setPaymentPhase('starting');
     setPaymentMessage('Tunaanzisha ombi la malipo...');
     try {
@@ -187,6 +193,8 @@ export const VideosPage: React.FC<VideosPageProps> = ({
     } catch (error) {
       setPaymentPhase('error');
       setPaymentMessage(getPaymentInitiationMessage(error));
+    } finally {
+      paymentSubmissionInProgress.current = false;
     }
   };
 
@@ -224,6 +232,12 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           <div className="catalog-panel mb-5">
             <h1 className="catalog-panel-heading">Video za Chombezo</h1>
           </div>
+
+          {paymentPhase === 'success' && (
+            <div className="catalog-video-payment-success mb-5" role="status">
+              {paymentMessage}
+            </div>
+          )}
 
           {selectedVideo ? <div className="catalog-video-player">
             <div className="catalog-video-frame">
@@ -352,9 +366,18 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                 </button>
               </>
             ) : paymentPhase === 'success' ? (
-              <div className="catalog-video-payment-success" role="status">{paymentMessage}</div>
+              <>
+                <div className="catalog-video-payment-success" role="status">{paymentMessage}</div>
+                <button
+                  type="button"
+                  className="catalog-video-pending-close"
+                  onClick={() => setIsPurchaseOpen(false)}
+                >
+                  Funga na utazame video zote
+                </button>
+              </>
             ) : (
-              <form onSubmit={handlePaymentSubmit} className="catalog-video-payment-form">
+              <div className="catalog-video-payment-form">
                 <label htmlFor="premium-phone-number">Namba ya simu yenye pesa</label>
                 {paymentPhase === 'idle' && paymentMessage && <p className="catalog-video-payment-note" role="status">{paymentMessage}</p>}
                 <input
@@ -365,16 +388,25 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                   placeholder="06XXXXXXXX au 07XXXXXXXX"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void handleStartPayment();
+                    }
+                  }}
                   pattern="0[67][0-9]{8}"
                   title="Weka namba ya simu inayoanza na 06 au 07"
-                  required
                   disabled={paymentPhase === 'starting'}
                 />
                 {paymentPhase === 'error' && <p className="catalog-video-payment-error" role="alert">{paymentMessage}</p>}
-                <button type="submit" disabled={paymentPhase === 'starting'}>
+                <button
+                  type="button"
+                  disabled={paymentPhase === 'starting'}
+                  onClick={() => void handleStartPayment()}
+                >
                   {paymentPhase === 'starting' ? <><LoaderCircle className="animate-spin" size={18} /> Inatuma...</> : 'Lipia sasa · TSh 3,000'}
                 </button>
-              </form>
+              </div>
             )}
             <div className="catalog-payment-methods" aria-label="Tigo Pesa, Vodacom M-Pesa, Airtel Money na Halopesa">
               <img
