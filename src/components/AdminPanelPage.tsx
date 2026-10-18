@@ -384,7 +384,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
             <div>Gallery Photos: <strong className="text-white">{galleryImages.length}</strong></div>
             <div>Products: <strong className="text-white">{products.length}</strong></div>
             {requiresAdminAuth && (
-              <button onClick={() => void onSignOut()} className="mt-2 text-emerald-300 underline underline-offset-2">
+              <button type="button" onClick={() => void onSignOut()} className="mt-2 text-emerald-300 underline underline-offset-2">
                 Sign out
               </button>
             )}
@@ -409,6 +409,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           </span>
 
           <button
+            type="button"
             onClick={() => setPostDestination('articles')}
             className={`px-5 py-2.5 text-sm sm:text-base font-bold uppercase tracking-wider transition-all cursor-pointer rounded-xs ${
               postDestination === 'articles'
@@ -420,6 +421,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setPostDestination('videos')}
             className={`px-5 py-2.5 text-sm sm:text-base font-bold uppercase tracking-wider transition-all cursor-pointer rounded-xs ${
               postDestination === 'videos'
@@ -431,6 +433,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setPostDestination('gallery')}
             className={`px-5 py-2.5 text-sm sm:text-base font-bold uppercase tracking-wider transition-all cursor-pointer rounded-xs ${
               postDestination === 'gallery'
@@ -442,6 +445,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setPostDestination('products')}
             className={`px-5 py-2.5 text-sm sm:text-base font-bold uppercase tracking-wider transition-all cursor-pointer rounded-xs ${
               postDestination === 'products'

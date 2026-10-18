@@ -47,6 +47,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             className="flex-1 text-sm bg-transparent focus:outline-hidden text-slate-900"
           />
           <button
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-700 text-lg px-2 font-mono"
             aria-label="Close search"
@@ -131,6 +132,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
         onClick={(e) => e.stopPropagation()}
       >
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-800 text-lg font-mono"
         >
