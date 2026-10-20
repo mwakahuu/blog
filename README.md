@@ -77,7 +77,7 @@ In **Admin Panel → Videos**, mark each new or edited video as Free or Premium.
 
 The server creates a pending FastLipa collection, then verifies completion by polling FastLipa's authenticated transaction-status endpoint with the private API token. Status polling validates the provider transaction ID, final status, and amount before granting access. Completion, entitlement extension, and payment updates are idempotent and transactional. The browser receives an HttpOnly opaque cookie; only its SHA-256 hash is stored. Versioned migrations in `migrations/` run automatically and transactionally at server startup; they add premium-payment/session tables and dismissed-payment tracking without altering existing content tables. Back up `data/blog.sqlite` before deploying.
 
-Add these server-only values to `.env` (never use a `VITE_` prefix):
+Add these server-only values to `.env` (never use a `VITE_` prefix).
 
 ```dotenv
 FASTLIPA_API_TOKEN=
@@ -86,9 +86,9 @@ PREMIUM_MEDIA_PROTECTION_CONFIRMED=true
 
 The viewer flow polls FastLipa's authenticated transaction-status endpoint; the server checks the final status, provider transaction ID, and fixed 3,000 TZS amount against its pending database record before granting access. FastLipa's status response does not include a currency field; the app uses the account's TZS collection amount.
 
-The admin may configure HTTPS video URLs from any host. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. Premium playback is served through the app's access-controlled proxy. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying that the media origin itself does not expose premium content publicly.
+The admin may configure HTTPS video URLs from any host. Public MP4 files, including Cloudinary videos, play directly without token keys. Bunny CDN (`*.b-cdn.net`) playlists and segments are proxied by the app with the site's referrer; Bunny must allow public playback (turn off Bunny token authentication and any incompatible referrer restrictions). Premium playback is served through the app's access-controlled proxy. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying that the media origin itself does not expose premium content publicly.
 
-Existing seeded videos remain free until changed in Admin Panel. Free video sources continue to load directly; premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure the private API token and protected video origins before production sales.
+Existing seeded videos remain free until changed in Admin Panel. Premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure the private API token and protected video origins before production sales.
 
 The app runs on container port `3000` and does not configure domains, DNS, or TLS. Put your own reverse proxy or hosting-platform routing in front of that port. The SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
 

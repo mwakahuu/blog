@@ -41,7 +41,10 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
     });
   }
 
-  if (url.hostname === 'cdn.test') {
+  if (url.hostname === 'cdn.test' || url.hostname.endsWith('.b-cdn.net')) {
+    if (url.hostname.endsWith('.b-cdn.net') && !new Headers(init?.headers).has('referer')) {
+      return new Response('Bunny referrer is missing.', { status: 403 });
+    }
     if (url.pathname.toLowerCase().endsWith('.m3u8')) {
       const manifest = url.pathname.endsWith('playlist.m3u8')
         ? '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000000\n720p/video.m3u8\n'

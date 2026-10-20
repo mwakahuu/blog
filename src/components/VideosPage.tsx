@@ -11,6 +11,7 @@ import {
   type PremiumAccessStatus,
 } from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { normalizeVideoUrl } from '../videoUrl';
 
 const getPaymentInitiationMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
@@ -133,8 +134,18 @@ export const VideosPage: React.FC<VideosPageProps> = ({
     if (!selectedVideo) return;
     setPlaybackError('');
     if (!selectedVideo.isPremium) {
-      setPlaybackUrl(selectedVideo.videoUrl ?? null);
-      setPlaybackFormat(selectedVideo.videoUrl?.toLowerCase().split('?')[0].endsWith('.m3u8') ? 'hls' : 'file');
+      if (!selectedVideo.videoUrl) {
+        setPlaybackUrl(null);
+        return;
+      }
+      const videoUrl = normalizeVideoUrl(selectedVideo.videoUrl);
+      if (!videoUrl) {
+        setPlaybackUrl(null);
+        setPlaybackError('Kiungo cha video si sahihi au kina URL zaidi ya moja. Sasisha video kwa kuweka kiungo kimoja kamili.');
+        return;
+      }
+      setPlaybackUrl(videoUrl);
+      setPlaybackFormat(new URL(videoUrl).pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file');
       return;
     }
     setPlaybackUrl(null);

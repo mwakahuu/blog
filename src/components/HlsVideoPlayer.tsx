@@ -89,7 +89,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
         controlsList="nodownload"
         preload="metadata"
         playsInline
-        crossOrigin="anonymous"
+        onError={() => setErrorMessage('This video could not be played. Check that its URL is publicly accessible and the video format is supported.')}
         aria-label={title}
       />
 

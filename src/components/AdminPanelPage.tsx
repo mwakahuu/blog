@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Post, VideoItem, GalleryImage, ShopProduct } from '../types';
+import { normalizeVideoUrl } from '../videoUrl';
 
 interface AdminPanelPageProps {
   posts: Post[];
@@ -225,6 +226,11 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       alert('Please fill out Title, Video Thumbnail Link, and Description.');
       return;
     }
+    const normalizedVideoUrl = normalizeVideoUrl(videoStreamUrl);
+    if (!normalizedVideoUrl) {
+      setActionError('Enter one complete video URL starting with http:// or https://. Multiple or malformed URLs cannot be played.');
+      return;
+    }
 
     try {
     if (editingVideoId) {
@@ -234,7 +240,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
           ...existing,
           title: videoTitle.trim(),
           thumbnail: videoThumbnailLink.trim(),
-          videoUrl: videoStreamUrl.trim() || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4',
+          videoUrl: normalizedVideoUrl,
           isPremium: videoIsPremium,
           duration: videoDuration.trim() || '12:00',
           description: videoDescription.trim(),
@@ -250,7 +256,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         views: '1K views',
         uploadDate: 'Just now',
         thumbnail: videoThumbnailLink.trim(),
-        videoUrl: videoStreamUrl.trim() || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4',
+        videoUrl: normalizedVideoUrl,
         isPremium: videoIsPremium,
         channelName: 'CHOMBEZO Video',
         description: videoDescription.trim(),
@@ -903,11 +909,13 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                     Video Stream URL (MP4 / HLS Link) *
                   </label>
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     required
                     value={videoStreamUrl}
                     onChange={(e) => setVideoStreamUrl(e.target.value)}
-                    placeholder="https://stream.mux.com/.../highest.mp4"
+                    placeholder="Enter one complete https:// video URL"
+                    spellCheck={false}
                     className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
                   />
                 </div>

@@ -12,6 +12,7 @@ import { createServer as createViteServer } from 'vite';
 import { INITIAL_GALLERY_IMAGES } from './src/data/gallery';
 import { PRODUCTS } from './src/data/shop';
 import { SEEDED_VIDEOS } from './src/data/videoSeeds';
+import { normalizeVideoUrl } from './src/videoUrl';
 import {
   getEntitlementWindow,
   PREMIUM_ACCESS_DURATION_MS,
@@ -236,7 +237,7 @@ const isPost = (value: unknown): value is Post =>
 
 const isVideo = (value: unknown): value is VideoItem =>
   hasStringFields(value, ['id', 'title', 'thumbnail', 'description']) &&
-  (value.videoUrl === undefined || typeof value.videoUrl === 'string') &&
+  (value.videoUrl === undefined || normalizeVideoUrl(value.videoUrl) !== null) &&
   (value.isPremium === undefined || typeof value.isPremium === 'boolean') &&
   (value.isPremium !== true || (typeof value.videoUrl === 'string' && (() => {
     try {
@@ -603,7 +604,12 @@ app.get('/api/admin/videos', requireAdmin, (_request, response) => {
 app.get('/api/videos/:id/playback', (request, response) => {
   response.setHeader('Cache-Control', 'private, no-store');
   const video = getVideo(request.params.id);
-  if (!video?.videoUrl) {
+  const videoUrl = normalizeVideoUrl(video?.videoUrl);
+  if (!video || !videoUrl) {
+    if (video?.videoUrl) {
+      response.status(422).json({ error: 'This video has an invalid URL. Update it with one complete video link.' });
+      return;
+    }
     response.status(404).json({ error: 'Video playback is unavailable.' });
     return;
   }
@@ -611,14 +617,15 @@ app.get('/api/videos/:id/playback', (request, response) => {
     response.status(403).json({ error: 'Premium access is required to watch this video.' });
     return;
   }
-  const format = new URL(video.videoUrl).pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file';
-  if (!video.isPremium) {
-    response.json({ url: video.videoUrl, format });
+  const source = new URL(videoUrl);
+  const format = source.pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file';
+  const isBunnyCdn = source.hostname.toLowerCase().endsWith('.b-cdn.net');
+  if (!video.isPremium && !isBunnyCdn) {
+    response.json({ url: videoUrl, format });
     return;
   }
   try {
-    const source = new URL(video.videoUrl);
-    resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, `${source.pathname}${source.search}`);
+    resolveAllowedMediaUrl(videoUrl, videoUrl, `${source.pathname}${source.search}`);
     const resource = encodeURIComponent(`${source.pathname}${source.search}`);
     response.json({ url: `/api/videos/${encodeURIComponent(video.id)}/stream?resource=${resource}`, format });
   } catch {
@@ -629,11 +636,16 @@ app.get('/api/videos/:id/playback', (request, response) => {
 app.get('/api/videos/:id/stream', async (request, response) => {
   response.setHeader('Cache-Control', 'private, no-store');
   const video = getVideo(request.params.id);
-  if (!video?.isPremium || !video.videoUrl) {
+  const videoUrl = normalizeVideoUrl(video?.videoUrl);
+  if (!video || !videoUrl) {
+    if (video?.videoUrl) {
+      response.status(422).json({ error: 'This video has an invalid URL.' });
+      return;
+    }
     response.status(404).json({ error: 'Video stream is unavailable.' });
     return;
   }
-  if (!getActiveEntitlement(getPremiumSession(request)?.session ?? null)) {
+  if (video.isPremium && !getActiveEntitlement(getPremiumSession(request)?.session ?? null)) {
     response.status(403).json({ error: 'Premium access is required to watch this video.' });
     return;
   }
@@ -644,13 +656,16 @@ app.get('/api/videos/:id/stream', async (request, response) => {
   }
 
   try {
-    const source = new URL(video.videoUrl);
-    const target = resolveAllowedMediaUrl(video.videoUrl, video.videoUrl, resource);
+    const source = new URL(videoUrl);
+    const target = resolveAllowedMediaUrl(videoUrl, videoUrl, resource);
     const headers = new Headers();
     for (const header of ['range', 'if-range', 'if-none-match']) {
       const value = request.get(header);
       if (value) headers.set(header, value);
     }
+    const isBunnyCdn = source.hostname.toLowerCase().endsWith('.b-cdn.net');
+    const referer = request.get('referer');
+    if (isBunnyCdn) headers.set('Referer', referer || `${request.protocol}://${request.get('host')}/`);
     const upstream = await fetch(target, {
       headers,
       redirect: 'error',
@@ -664,7 +679,7 @@ app.get('/api/videos/:id/stream', async (request, response) => {
       if (value) response.setHeader(header, value);
     }
     if (isManifest && upstream.ok) {
-      const rewritten = rewriteHlsManifest(await upstream.text(), video.videoUrl, target.toString(), video.id);
+      const rewritten = rewriteHlsManifest(await upstream.text(), videoUrl, target.toString(), video.id);
       response.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
       response.setHeader('Content-Length', Buffer.byteLength(rewritten));
       response.end(rewritten);
@@ -775,7 +790,7 @@ app.delete('/api/posts/:id', requireAdmin, (request, response) => {
 app.post('/api/videos', requireAdmin, (request, response) => {
   const video = request.body as VideoItem;
   if (!isVideo(video)) {
-    response.status(400).json({ error: 'A video requires an id, title, thumbnail, and description.' });
+    response.status(400).json({ error: 'A video needs an id, title, thumbnail, description, and one valid video URL.' });
     return;
   }
   database.prepare(`

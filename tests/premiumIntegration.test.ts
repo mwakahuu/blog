@@ -82,6 +82,17 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
     return row.id;
   });
   const freeVideoId = rows[2].id;
+  const freeVideo = JSON.parse(rows[2].data) as Record<string, unknown>;
+  freeVideo.videoUrl = 'https://vz-test-1.b-cdn.net/free-video/playlist.m3u8';
+  database.prepare('update videos set data = ? where id = ?').run(JSON.stringify(freeVideo), freeVideoId);
+  const cloudinaryVideoId = rows[3].id;
+  const cloudinaryVideo = JSON.parse(rows[3].data) as Record<string, unknown>;
+  cloudinaryVideo.videoUrl = 'https://res.cloudinary.com/test/video/upload/sample.mp4';
+  database.prepare('update videos set data = ? where id = ?').run(JSON.stringify(cloudinaryVideo), cloudinaryVideoId);
+  const malformedVideoId = rows[4].id;
+  const malformedVideo = JSON.parse(rows[4].data) as Record<string, unknown>;
+  malformedVideo.videoUrl = 'sthttps//vhttps://kayatan.cc/video.mp4z-6aac71b9.b-cdn.net/playlist.m3u8ream.mux.com/highest.mp4';
+  database.prepare('update videos set data = ? where id = ?').run(JSON.stringify(malformedVideo), malformedVideoId);
   database.close();
 
   let premiumCookie = '';
@@ -106,7 +117,22 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal((await fetch(`${origin}/api/videos/${premiumVideos[0]}/playback`, {
     headers: { Cookie: 'blog_premium_session=invalid-token' },
   })).status, 403);
-  assert.equal((await request(`/api/videos/${freeVideoId}/playback`)).status, 200);
+  const freePlaybackResponse = await request(`/api/videos/${freeVideoId}/playback`);
+  const freePlayback = await freePlaybackResponse.json() as { url: string; format: string };
+  assert.equal(freePlaybackResponse.status, 200);
+  assert.equal(freePlayback.format, 'hls');
+  assert.ok(freePlayback.url.startsWith(`/api/videos/${freeVideoId}/stream?resource=`));
+  const freePlaylistResponse = await request(freePlayback.url);
+  assert.equal(freePlaylistResponse.status, 200);
+  assert.match(await freePlaylistResponse.text(), /\/api\/videos\//);
+  const cloudinaryPlaybackResponse = await request(`/api/videos/${cloudinaryVideoId}/playback`);
+  const cloudinaryPlayback = await cloudinaryPlaybackResponse.json() as { url: string; format: string };
+  assert.equal(cloudinaryPlaybackResponse.status, 200);
+  assert.equal(cloudinaryPlayback.format, 'file');
+  assert.equal(cloudinaryPlayback.url, cloudinaryVideo.videoUrl);
+  const malformedPlaybackResponse = await request(`/api/videos/${malformedVideoId}/playback`);
+  assert.equal(malformedPlaybackResponse.status, 422);
+  assert.match((await malformedPlaybackResponse.json() as { error: string }).error, /invalid URL/i);
   assert.equal((await request('/api/admin/videos')).status, 401);
   assert.equal((await request('/api/payments/create', {
     method: 'POST',
