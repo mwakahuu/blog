@@ -97,6 +97,7 @@
 }
 
 .app-shell[data-theme="dark"] [class~="text-slate-900"],
+.app-shell[data-theme="dark"] [class~="text-slate-950"],
 .app-shell[data-theme="dark"] [class~="text-slate-800"],
 .app-shell[data-theme="dark"] [class~="text-slate-700"] {
   color: #e2e8f0;

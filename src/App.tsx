@@ -508,9 +508,6 @@ export default function App() {
         {currentView === 'videos' && (
           <VideosPage
             videos={videos}
-            posts={posts}
-            onSelectPost={handleSelectPost}
-            onSearch={handleSearch}
           />
         )}
 

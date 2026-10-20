@@ -5,7 +5,6 @@ import test from 'node:test';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
 import {
-  createBunnyTokenUrl,
   getEntitlementWindow,
   normalizeTanzanianPhone,
   normalizeTzsAmount,
@@ -47,14 +46,6 @@ test('starts first entitlement now and extends an active entitlement from its ex
   assert.equal(expired.startsAt, now);
 });
 
-test('signs Bunny CDN URLs by path and expiry without changing the source path', () => {
-  const expiresAt = 1_800_000_000;
-  const url = createBunnyTokenUrl(new URL('https://cdn.example/video/playlist.m3u8'), 'secret', expiresAt);
-  assert.equal(url.pathname, '/video/playlist.m3u8');
-  assert.equal(url.searchParams.get('expires'), String(expiresAt));
-  assert.match(url.searchParams.get('token') ?? '', /^[A-Za-z0-9_-]+$/);
-});
-
 test('omits premium source URLs from public metadata but preserves free URLs', () => {
   const premium = publicVideo({ id: 'premium', isPremium: true, videoUrl: 'https://media.example/premium.m3u8' });
   const free = publicVideo({ id: 'free', isPremium: false, videoUrl: 'https://media.example/free.m3u8' });
@@ -63,9 +54,9 @@ test('omits premium source URLs from public metadata but preserves free URLs', (
 });
 
 test('resolves media from any HTTPS source but confines requests to its HTTPS origin and directory', () => {
-  const source = 'https://cdn.example/video-id/playlist.m3u8';
+  const source = 'https://media.my-vps.example/video-id/playlist.m3u8';
   const resolved = resolveAllowedMediaUrl(source, source, '720p/video.m3u8');
-  assert.equal(resolved.href, 'https://cdn.example/video-id/720p/video.m3u8');
+  assert.equal(resolved.href, 'https://media.my-vps.example/video-id/720p/video.m3u8');
   assert.throws(() => resolveAllowedMediaUrl(source, source, '../../private.txt'));
   assert.throws(() => resolveAllowedMediaUrl(source, source, 'https://other.example/segment.ts'));
   assert.throws(() => resolveAllowedMediaUrl('http://cdn.example/a.m3u8', 'http://cdn.example/a.m3u8', 'a.ts'));

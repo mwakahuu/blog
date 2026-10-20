@@ -11,6 +11,8 @@ const darEsSalaamDateTime = new Intl.DateTimeFormat('en-US', {
   timeZoneName: 'short',
 });
 
+const WHATSAPP_CHANNEL_URL = 'https://whatsapp.com/channel/0029Vb8XtQJ4IBhDcxVRDI2i';
+
 interface TopBarProps {
   onOpenSubscribe: () => void;
   onNavigateHome: () => void;
@@ -35,7 +37,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
           <div className="flex items-center gap-2">
             {/* Facebook */}
             <a
-              href="https://facebook.com"
+              href={WHATSAPP_CHANNEL_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="Facebook"
@@ -48,7 +50,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
 
             {/* X / Twitter */}
             <a
-              href="https://x.com"
+              href={WHATSAPP_CHANNEL_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="X (Twitter)"
@@ -61,7 +63,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
 
             {/* YouTube */}
             <a
-              href="https://youtube.com"
+              href={WHATSAPP_CHANNEL_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="YouTube"
@@ -74,7 +76,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
 
             {/* TikTok */}
             <a
-              href="https://tiktok.com"
+              href={WHATSAPP_CHANNEL_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="TikTok"
@@ -87,7 +89,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSubscribe }) => {
 
             {/* Instagram */}
             <a
-              href="https://instagram.com"
+              href={WHATSAPP_CHANNEL_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="Instagram"

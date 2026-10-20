@@ -14,7 +14,6 @@ import { PRODUCTS } from './src/data/shop';
 import { SEEDED_VIDEOS } from './src/data/videoSeeds';
 import {
   getEntitlementWindow,
-  createBunnyTokenUrl,
   PREMIUM_ACCESS_DURATION_MS,
   PREMIUM_FLOW_SESSION_MS,
   PREMIUM_PRICE_TZS,
@@ -652,11 +651,7 @@ app.get('/api/videos/:id/stream', async (request, response) => {
       const value = request.get(header);
       if (value) headers.set(header, value);
     }
-    const tokenKey = process.env.BUNNY_CDN_TOKEN_KEY;
-    const upstreamUrl = tokenKey && target.hostname.toLowerCase().endsWith('.b-cdn.net')
-      ? createBunnyTokenUrl(target, tokenKey, Math.floor(Date.now() / 1000) + 300)
-      : target;
-    const upstream = await fetch(upstreamUrl, {
+    const upstream = await fetch(target, {
       headers,
       redirect: 'error',
       signal: AbortSignal.timeout(30_000),
@@ -867,7 +862,6 @@ app.use((error: unknown, _request: Request, response: Response, _next: NextFunct
 });
 
 const port = Number(process.env.PORT || 3000);
-const host = process.env.HOST || '0.0.0.0';
 
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(projectRoot, 'dist');
@@ -897,8 +891,8 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-httpServer.listen(port, host, () => {
-  console.log(`Website and local SQLite API listening on http://${host}:${port}`);
+httpServer.listen(port, () => {
+  console.log(`Website and local SQLite API listening on port ${port}`);
   console.log(`SQLite database: ${databasePath}`);
 });
 

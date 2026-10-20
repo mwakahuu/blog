@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LoaderCircle, LockKeyhole, Share2, ThumbsUp, X } from 'lucide-react';
-import type { Post, VideoItem } from '../types';
+import { LoaderCircle, LockKeyhole, Play, Share2, ThumbsUp, X } from 'lucide-react';
+import type { VideoItem } from '../types';
 import {
   abandonPremiumPayment,
   ApiRequestError,
@@ -11,7 +11,6 @@ import {
   type PremiumAccessStatus,
 } from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
-import { Sidebar } from './Sidebar';
 
 const getPaymentInitiationMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
@@ -26,16 +25,10 @@ const getPaymentInitiationMessage = (error: unknown) => {
 
 interface VideosPageProps {
   videos: VideoItem[];
-  posts: Post[];
-  onSelectPost: (post: Post) => void;
-  onSearch: (query: string) => void;
 }
 
 export const VideosPage: React.FC<VideosPageProps> = ({
   videos,
-  posts,
-  onSelectPost,
-  onSearch,
 }) => {
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(videos[0] ?? null);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(() => new Set());
@@ -51,6 +44,12 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   const [paymentMessage, setPaymentMessage] = useState('');
   const paymentSubmissionInProgress = useRef(false);
   const isLiked = selectedVideo ? likedVideoIds.has(selectedVideo.id) : false;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    console.info('[navigation-debug] VideosPage mounted.');
+    return () => console.info('[navigation-debug] VideosPage unmounted.');
+  }, []);
 
   useEffect(() => {
     setSelectedVideo((current) => {
@@ -95,6 +94,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
       try {
         const payment = await fetchPremiumPaymentStatus(paymentReference);
         if (!active) return;
+        if (import.meta.env.DEV) console.info(`[payment-debug] Provider status: ${payment.status}; accessActive=${payment.accessActive}`);
         if (payment.status === 'completed' && payment.accessActive) {
           setAccessStatus({ active: true, expiresAt: payment.expiresAt, pendingReference: null });
           setPaymentMessage('Malipo yamefanikiwa. Video zote za premium zimefunguliwa kwa saa 5.');
@@ -185,12 +185,15 @@ export const VideosPage: React.FC<VideosPageProps> = ({
     paymentSubmissionInProgress.current = true;
     setPaymentPhase('starting');
     setPaymentMessage('Tunaanzisha ombi la malipo...');
+    if (import.meta.env.DEV) console.info('[payment-debug] Pay clicked; starting payment request.');
     try {
       const payment = await createPremiumPayment(phone);
+      if (import.meta.env.DEV) console.info('[payment-debug] Payment request accepted; polling for confirmation.');
       setPaymentReference(payment.reference);
       setPaymentPhase('pending');
       setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako.');
     } catch (error) {
+      if (import.meta.env.DEV) console.error('[payment-debug] Payment request failed.', error);
       setPaymentPhase('error');
       setPaymentMessage(getPaymentInitiationMessage(error));
     } finally {
@@ -335,12 +338,44 @@ export const VideosPage: React.FC<VideosPageProps> = ({
         </section>
 
         <div className="lg:col-span-4">
-          <Sidebar
-            posts={posts}
-            onSelectPost={onSelectPost}
-            onSearch={onSearch}
-            compact
-          />
+          <section className="catalog-panel">
+            <h2 className="catalog-panel-heading">Video nyingine</h2>
+            <div className="flex flex-col divide-y divide-slate-200">
+              {videos.filter((video) => video.id !== selectedVideo?.id).map((video) => (
+                <button
+                  key={video.id}
+                  type="button"
+                  onClick={() => handleSelectVideo(video)}
+                  className="group flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-slate-50"
+                  aria-label={`Play video: ${video.title}`}
+                >
+                  <span className="relative h-16 w-28 shrink-0 overflow-hidden rounded bg-slate-900">
+                    <img
+                      src={video.thumbnail}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white">
+                      <Play size={20} fill="currentColor" aria-hidden="true" />
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 block text-sm font-bold leading-snug text-slate-800 transition-colors group-hover:text-red-600">
+                      {video.title}
+                      {video.isPremium && <span className="catalog-video-premium-label">PREMIUM</span>}
+                    </span>
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {video.duration}{video.uploadDate ? ` · ${video.uploadDate}` : ''}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              {videos.length <= (selectedVideo ? 1 : 0) && (
+                <p className="p-4 text-sm text-slate-500">Hakuna video nyingine kwa sasa.</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
 
@@ -377,36 +412,37 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                 </button>
               </>
             ) : (
-              <div className="catalog-video-payment-form">
+              <form
+                className="catalog-video-payment-form"
+                noValidate
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleStartPayment();
+                }}
+              >
                 <label htmlFor="premium-phone-number">Namba ya simu yenye pesa</label>
                 {paymentPhase === 'idle' && paymentMessage && <p className="catalog-video-payment-note" role="status">{paymentMessage}</p>}
                 <input
                   id="premium-phone-number"
+                  name="phone"
                   type="tel"
                   inputMode="numeric"
                   autoComplete="tel-national"
                   placeholder="06XXXXXXXX au 07XXXXXXXX"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void handleStartPayment();
-                    }
-                  }}
                   pattern="0[67][0-9]{8}"
                   title="Weka namba ya simu inayoanza na 06 au 07"
                   disabled={paymentPhase === 'starting'}
                 />
                 {paymentPhase === 'error' && <p className="catalog-video-payment-error" role="alert">{paymentMessage}</p>}
                 <button
-                  type="button"
+                  type="submit"
                   disabled={paymentPhase === 'starting'}
-                  onClick={() => void handleStartPayment()}
                 >
                   {paymentPhase === 'starting' ? <><LoaderCircle className="animate-spin" size={18} /> Inatuma...</> : 'Lipia sasa · TSh 3,000'}
                 </button>
-              </div>
+              </form>
             )}
             <div className="catalog-payment-methods" aria-label="Tigo Pesa, Vodacom M-Pesa, Airtel Money na Halopesa">
               <img

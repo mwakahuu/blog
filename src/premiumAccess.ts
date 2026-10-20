@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 export const PREMIUM_PRICE_TZS = 3000;
 export const PREMIUM_PRODUCT_ID = 'all-premium-5h';
 export const PREMIUM_ACCESS_DURATION_MS = 5 * 60 * 60 * 1000;
@@ -28,16 +26,6 @@ export const getEntitlementWindow = (
 ): { startsAt: number; expiresAt: number } => {
   const startsAt = currentExpiry !== null && currentExpiry > now ? currentExpiry : now;
   return { startsAt, expiresAt: startsAt + duration };
-};
-
-export const createBunnyTokenUrl = (url: URL, key: string, expiresAt: number): URL => {
-  const signedUrl = new URL(url);
-  const expiry = String(expiresAt);
-  const digest = createHash('sha256').update(`${key}${signedUrl.pathname}${expiry}`).digest();
-  const token = digest.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  signedUrl.searchParams.set('token', token);
-  signedUrl.searchParams.set('expires', expiry);
-  return signedUrl;
 };
 
 export const publicVideo = <T extends { isPremium?: boolean; videoUrl?: string }>(video: T): T => {

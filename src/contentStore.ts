@@ -41,6 +41,9 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
       ...init?.headers,
     },
   });
+  if (import.meta.env.DEV && path.startsWith('/payments')) {
+    console.info(`[payment-debug] ${init?.method ?? 'GET'} ${path}: HTTP ${response.status}; redirected=${response.redirected}`);
+  }
 
   const result = await response.json().catch(() => ({})) as { error?: string };
   if (!response.ok) {

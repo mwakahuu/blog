@@ -15,7 +15,6 @@ RUN npm run lint && npm run build && npm prune --omit=dev
 FROM node:22-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
-    HOST=0.0.0.0 \
     PORT=3000 \
     DB_PATH=/data/blog.sqlite
 

@@ -148,16 +148,6 @@ export const PostDetail: React.FC<PostDetailProps> = ({
           </blockquote>
         )}
 
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xs my-6 not-italic font-sans text-xs sm:text-sm text-slate-700">
-          <h4 className="font-bold text-slate-900 uppercase tracking-wide mb-2 font-condensed text-base">
-            Key Editorial Takeaways
-          </h4>
-          <ul className="list-disc list-inside space-y-1 text-slate-600">
-            <li>High-performance editorial layout designed for sub-second Core Web Vitals.</li>
-            <li>Optimized typography and visual pacing for long-form reading comfort.</li>
-            <li>Direct contact and order integration via WhatsApp support.</li>
-          </ul>
-        </div>
       </div>
 
       {/* Social Share Strip */}
@@ -173,14 +163,6 @@ export const PostDetail: React.FC<PostDetailProps> = ({
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5"
           >
             <span>WhatsApp</span>
-          </a>
-          <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="px-3 py-1.5 bg-black hover:bg-slate-800 text-white text-xs font-semibold rounded-xs transition-colors flex items-center gap-1.5"
-          >
-            <span>X / Twitter</span>
           </a>
           <button
             onClick={handleCopyLink}

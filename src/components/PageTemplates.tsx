@@ -546,6 +546,12 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
           <p className="text-base sm:text-lg font-semibold text-slate-800 leading-relaxed">
             Unataka kuuza zaidi, kutangaza biashara yako au kujenga uwepo wako mtandaoni?
           </p>
+          <img
+            src="https://i.ibb.co/m5h4SpjP/websaite.jpg"
+            alt="Mfano wa website ya biashara"
+            referrerPolicy="no-referrer"
+            className="mt-5 h-auto w-full rounded-lg object-cover"
+          />
           <p className="text-sm sm:text-base text-slate-600 mt-3 leading-relaxed">
             Website inaweza kusaidia biashara yako kufikia wateja wengi zaidi na kuwapa taarifa muhimu wakati wowote. Tunatengeneza website za kisasa, za kitaalamu na zinazolenga mahitaji ya biashara yako—kuanzia kupanga muundo na maudhui hadi kuweka huduma zako mtandaoni.
           </p>
@@ -572,6 +578,14 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Panga maudhui yako ya kidijitali na toa ufikiaji kwa wateja kulingana na mfumo wa biashara yako.
                 </p>
+                <a
+                  href="https://chombezo.online"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block text-sm font-semibold text-red-600 underline underline-offset-2 hover:text-red-700"
+                >
+                  Tazama mfano wa website: chombezo.online
+                </a>
               </li>
               <li>
                 <h3 className="font-bold text-slate-900">Tovuti ya kutambulisha biashara na chapa yako</h3>
@@ -584,6 +598,12 @@ export const PageTemplates: React.FC<PageTemplateProps> = ({
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Wasaidie wateja wapya kukupata na kujifunza kuhusu biashara yako kupitia simu au kompyuta, popote walipo.
                 </p>
+                <img
+                  src="https://i.ibb.co/TD5j924h/tangazzz.jpg"
+                  alt="Mfano wa tangazo la biashara mtandaoni"
+                  referrerPolicy="no-referrer"
+                  className="mt-3 h-auto w-full rounded-lg object-cover"
+                />
               </li>
             </ul>
           </section>

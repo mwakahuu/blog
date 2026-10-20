@@ -156,6 +156,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
+    setArticleSuccessMsg('');
     if (!articleTitle.trim() || !articleImageLink.trim() || !articleContent.trim()) {
       alert('Please fill out Title, Image Link URL, and Content.');
       return;
@@ -210,15 +211,6 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       setArticleSuccessMsg('✓ Long-form story published live to Articles page!');
     }
 
-    setEditingPostId(null);
-    setArticleTitle('');
-    setArticleImageLink('');
-    setArticleAdditionalImageLinks('');
-    setArticleVideoUrl('');
-    setArticleExcerpt('');
-    setArticleContent('');
-    setArticlePullQuote('');
-    setTimeout(() => setArticleSuccessMsg(''), 4000);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to save article.');
     }
@@ -228,6 +220,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const handleSaveVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
+    setVideoSuccessMsg('');
     if (!videoTitle.trim() || !videoThumbnailLink.trim() || !videoDescription.trim()) {
       alert('Please fill out Title, Video Thumbnail Link, and Description.');
       return;
@@ -267,13 +260,6 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       setVideoSuccessMsg('✓ New video published live to Videos page!');
     }
 
-    setEditingVideoId(null);
-    setVideoTitle('');
-    setVideoThumbnailLink('');
-    setVideoDuration('');
-    setVideoDescription('');
-    setVideoIsPremium(false);
-    setTimeout(() => setVideoSuccessMsg(''), 4000);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to save video.');
     }
@@ -283,6 +269,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const handleSaveGalleryImage = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionError('');
+    setGallerySuccessMsg('');
     if (!galleryImageLink.trim()) {
       alert('Please enter an image link URL.');
       return;
@@ -299,14 +286,13 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       setActionError(error instanceof Error ? error.message : 'Unable to save gallery image.');
       return;
     }
-    setGalleryImageLink('');
     setGallerySuccessMsg('✓ New photo added to Gallery page successfully!');
-    setTimeout(() => setGallerySuccessMsg(''), 4000);
   };
 
   const handleSaveProduct = async (event: React.FormEvent) => {
     event.preventDefault();
     setActionError('');
+    setProductSuccessMsg('');
     const imageLinks = productImageLinks.split('\n').map((url) => url.trim()).filter(Boolean);
     const videoLinks = productVideoLinks.split('\n').map((url) => url.trim()).filter(Boolean);
     if (!productTitle.trim() || !imageLinks.length || !productDescription.trim()) {
@@ -345,13 +331,6 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         await onAddProduct(product);
         setProductSuccessMsg('✓ Product published to the Shop page!');
       }
-      setEditingProductId(null);
-      setProductTitle('');
-      setProductImageLinks('');
-      setProductVideoLinks('');
-      setProductPriceLabel('');
-      setProductDescription('');
-      setTimeout(() => setProductSuccessMsg(''), 4000);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Unable to save product.');
     }
