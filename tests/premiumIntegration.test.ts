@@ -317,6 +317,45 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   const adminVideoList = await adminVideos.json() as Array<{ id: string; videoUrl?: string; isPremium?: boolean }>;
   assert.equal(adminVideoList.find((video) => video.id === premiumVideos[0])?.isPremium, true);
   assert.match(adminVideoList.find((video) => video.id === premiumVideos[0])?.videoUrl ?? '', /^https:\/\/cdn\.test\//);
+  const adminPublishedVideo = {
+    id: 'admin-storage-video',
+    title: 'Admin storage video',
+    duration: '10:00',
+    views: '1 view',
+    uploadDate: 'Today',
+    thumbnail: 'https://covers.test/admin.jpg',
+    videoUrl: SEEDED_VIDEOS[2].videoUrl,
+    isPremium: false,
+    channelName: 'Admin',
+    description: 'Published from the admin panel',
+    likes: '0',
+  };
+  const adminVideoHeaders = new Headers({
+    Cookie: adminCookie,
+    'Content-Type': 'application/json',
+  });
+  const publishedVideoResponse = await fetch(`${origin}/api/videos`, {
+    method: 'POST',
+    headers: adminVideoHeaders,
+    body: JSON.stringify(adminPublishedVideo),
+  });
+  assert.equal(publishedVideoResponse.status, 200);
+  const publishedPlaybackResponse = await request('/api/videos/admin-storage-video/playback');
+  const publishedPlayback = await publishedPlaybackResponse.json() as { url: string; format: string };
+  assert.equal(publishedPlaybackResponse.status, 200);
+  assert.equal(publishedPlayback.url, adminPublishedVideo.videoUrl);
+  assert.equal(publishedPlayback.format, 'file');
+
+  const malformedAdminVideoResponse = await fetch(`${origin}/api/videos`, {
+    method: 'POST',
+    headers: adminVideoHeaders,
+    body: JSON.stringify({
+      ...adminPublishedVideo,
+      id: 'admin-malformed-video',
+      videoUrl: 'https://stream.muxhttps//storage.server.antenkayume.com/storage/uploads/4/video.mp4.com/BV3YZ/highest.mp4',
+    }),
+  });
+  assert.equal(malformedAdminVideoResponse.status, 400);
 
   databaseForAssertions.prepare('update entitlements set expires_at = ? where id = ?').run(Date.now() - 1, entitlement.id);
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);

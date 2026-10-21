@@ -88,11 +88,21 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoThumbnailLink, setVideoThumbnailLink] = useState('');
-  const [videoStreamUrl, setVideoStreamUrl] = useState('https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4');
+  const [videoStreamUrl, setVideoStreamUrl] = useState('');
   const [videoDuration, setVideoDuration] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
   const [videoIsPremium, setVideoIsPremium] = useState(false);
   const [videoSuccessMsg, setVideoSuccessMsg] = useState('');
+
+  const resetVideoForm = () => {
+    setEditingVideoId(null);
+    setVideoTitle('');
+    setVideoThumbnailLink('');
+    setVideoStreamUrl('');
+    setVideoDuration('');
+    setVideoDescription('');
+    setVideoIsPremium(false);
+  };
 
   // Gallery Image State
   const [galleryImageLink, setGalleryImageLink] = useState('');
@@ -247,6 +257,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         };
         await onUpdateVideo(updated);
         setVideoSuccessMsg('✓ Video updated successfully!');
+        resetVideoForm();
       }
     } else {
       const newVideo: VideoItem = {
@@ -264,6 +275,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
       };
       await onAddVideo(newVideo);
       setVideoSuccessMsg('✓ New video published live to Videos page!');
+      resetVideoForm();
     }
 
     } catch (error) {
@@ -914,10 +926,13 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                     required
                     value={videoStreamUrl}
                     onChange={(e) => setVideoStreamUrl(e.target.value)}
-                    placeholder="Enter one complete https:// video URL"
+                    placeholder="https://storage.example.com/videos/my-video.mp4"
                     spellCheck={false}
                     className="w-full px-4 py-3 text-sm sm:text-base border border-slate-300 focus:outline-hidden focus:border-red-600 bg-slate-50 font-mono"
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Paste one complete public MP4 or HLS URL. Replace the whole field; do not append a URL to an existing one.
+                  </p>
                 </div>
 
                 <div>
@@ -970,12 +985,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setEditingVideoId(null);
-                      setVideoTitle('');
-                      setVideoThumbnailLink('');
-                      setVideoDuration('');
-                      setVideoDescription('');
-                      setVideoIsPremium(false);
+                      resetVideoForm();
                     }}
                     className="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm sm:text-base px-6 py-3.5 transition-colors cursor-pointer"
                   >
@@ -1024,7 +1034,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                             setEditingVideoId(vid.id);
                             setVideoTitle(vid.title);
                             setVideoThumbnailLink(vid.thumbnail);
-                            setVideoStreamUrl(vid.videoUrl || 'https://stream.mux.com/BV3YZtogl89mg9VcNBhhnHm02Y34zI1nlMuMQfAbl3dM/highest.mp4');
+                            setVideoStreamUrl(vid.videoUrl || '');
                             setVideoDuration(vid.duration);
                             setVideoDescription(vid.description);
                             setVideoIsPremium(Boolean(vid.isPremium));

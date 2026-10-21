@@ -23,6 +23,11 @@ test('rejects concatenated, incomplete, credentialed, and non-web video URLs', (
     null,
   );
   assert.equal(normalizeVideoUrl('https://cdn.example/video.mp4https://other.example/clip.mp4'), null);
+  assert.equal(
+    normalizeVideoUrl('https://stream.muxhttps//storage.server.antenkayume.com/storage/uploads/4/video.mp4.com/BV3YZ/highest.mp4'),
+    null,
+  );
+  assert.equal(normalizeVideoUrl('https://cdn.example//storage/video.mp4'), null);
   assert.equal(normalizeVideoUrl('https://stream'), null);
   assert.equal(normalizeVideoUrl('https://user:password@cdn.example/video.mp4'), null);
   assert.equal(normalizeVideoUrl('javascript:alert(1)'), null);

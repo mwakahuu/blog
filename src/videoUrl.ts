@@ -7,10 +7,12 @@ export const normalizeVideoUrl = (value: unknown): string | null => {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
     const hasPublicHostname = hostname === 'localhost' || hostname.includes('.') || hostname.startsWith('[');
-    const hasEmbeddedUrl = /https?:/i.test(`${parsed.pathname}${parsed.search}${parsed.hash}`);
+    const hasEmbeddedUrl = /https?:\/{0,2}/i.test(`${parsed.pathname}${parsed.search}${parsed.hash}`);
     if (
       !['http:', 'https:'].includes(parsed.protocol) ||
       !hasPublicHostname ||
+      /https?/i.test(hostname) ||
+      parsed.pathname.startsWith('//') ||
       parsed.username ||
       parsed.password ||
       hasEmbeddedUrl
