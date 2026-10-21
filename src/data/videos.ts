@@ -15,7 +15,7 @@ const POSTER_IMAGES = [
 
 const RESOLUTION_TAGS = ['720p HD', '480p', '360p', '360p', '480p', '720p HD'];
 
-export const VIDEOS: VideoItem[] = Array.from({ length: 39 }, (_, index) => {
+export const VIDEOS: VideoItem[] = Array.from({ length: 6 }, (_, index) => {
   const quality = RESOLUTION_TAGS[index % RESOLUTION_TAGS.length];
   const minutes = Math.floor(3 + ((index * 7) % 18));
   const seconds = String((index * 13) % 60).padStart(2, '0');

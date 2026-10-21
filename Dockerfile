@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run lint && npm run build && npm prune --omit=dev
+RUN npm test && npm run lint && npm run build && npm prune --omit=dev
 
 FROM node:22-bookworm-slim AS runtime
 
@@ -26,6 +26,7 @@ COPY --from=build --chown=node:node /app/server.ts ./server.ts
 COPY --from=build --chown=node:node /app/src/data ./src/data
 COPY --from=build --chown=node:node /app/src/types.ts ./src/types.ts
 COPY --from=build --chown=node:node /app/src/premiumAccess.ts ./src/premiumAccess.ts
+COPY --from=build --chown=node:node /app/src/videoUrl.ts ./src/videoUrl.ts
 COPY --from=build --chown=node:node /app/migrations ./migrations
 COPY --from=build --chown=node:node /app/dist ./dist
 

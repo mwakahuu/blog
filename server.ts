@@ -103,6 +103,35 @@ const seedDefaults = database.transaction(() => {
 });
 seedDefaults();
 
+const replaceVideoCatalog = database.transaction(() => {
+  const migrationKey = 'storage_video_catalog_replaced';
+  if (database.prepare('select value from app_settings where key = ?').get(migrationKey)) return;
+
+  const existingVideos = database.prepare('select id, data from videos order by rowid asc')
+    .all() as Array<{ id: string; data: string }>;
+  const updateVideo = database.prepare('update videos set data = ? where id = ?');
+  const deleteVideo = database.prepare('delete from videos where id = ?');
+
+  for (const [index, video] of SEEDED_VIDEOS.entries()) {
+    const existing = existingVideos[index];
+    if (existing) {
+      const existingVideo = JSON.parse(existing.data) as VideoItem;
+      updateVideo.run(JSON.stringify({
+        ...existingVideo,
+        videoUrl: video.videoUrl,
+        isPremium: video.isPremium,
+      }), existing.id);
+    } else {
+      insertVideo.run(video.id, JSON.stringify(video));
+    }
+  }
+  for (const existing of existingVideos.slice(SEEDED_VIDEOS.length)) {
+    deleteVideo.run(existing.id);
+  }
+  database.prepare('insert into app_settings (key, value) values (?, ?)').run(migrationKey, 'true');
+});
+replaceVideoCatalog();
+
 const seedDefaultProducts = database.transaction(() => {
   const initialized = database.prepare('select value from app_settings where key = ?').get('default_products_seeded');
   if (initialized) return;
@@ -720,11 +749,13 @@ app.get('/api/content', (_request, response) => {
 
 app.post('/api/content/import-local', requireAdmin, (request, response) => {
   const { posts, videos, galleryImages } = isRecord(request.body) ? request.body : {};
+  const videoCatalogReplaced = Boolean(database.prepare('select value from app_settings where key = ?')
+    .get('storage_video_catalog_replaced'));
   if (
     !Array.isArray(posts) ||
     !posts.every(isPost) ||
     !Array.isArray(videos) ||
-    !videos.every(isVideo) ||
+    (!videoCatalogReplaced && !videos.every(isVideo)) ||
     !Array.isArray(galleryImages) ||
     !galleryImages.every(isGalleryImage)
   ) {
@@ -750,11 +781,13 @@ app.post('/api/content/import-local', requireAdmin, (request, response) => {
           .run(comment.id, post.id, JSON.stringify(comment));
       }
     }
-    for (const video of videos) {
-      database.prepare(`
-        insert into videos (id, data) values (?, ?)
-        on conflict(id) do update set data = excluded.data
-      `).run(video.id, JSON.stringify(video));
+    if (!videoCatalogReplaced) {
+      for (const video of videos) {
+        database.prepare(`
+          insert into videos (id, data) values (?, ?)
+          on conflict(id) do update set data = excluded.data
+        `).run(video.id, JSON.stringify(video));
+      }
     }
     for (const image of galleryImages) {
       database.prepare(`

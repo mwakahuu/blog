@@ -86,19 +86,22 @@ PREMIUM_MEDIA_PROTECTION_CONFIRMED=true
 
 The viewer flow polls FastLipa's authenticated transaction-status endpoint; the server checks the final status, provider transaction ID, and fixed 3,000 TZS amount against its pending database record before granting access. FastLipa's status response does not include a currency field; the app uses the account's TZS collection amount.
 
-The admin may configure HTTPS video URLs from any host. Public MP4 files, including Cloudinary videos, play directly without token keys. Bunny CDN (`*.b-cdn.net`) playlists and segments are proxied by the app with the site's referrer; Bunny must allow public playback (turn off Bunny token authentication and any incompatible referrer restrictions). Premium playback is served through the app's access-controlled proxy. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying that the media origin itself does not expose premium content publicly.
+The admin may configure HTTPS video URLs from any host. Public MP4 files play directly without token keys; the media host must return the file as `video/mp4` and support byte-range requests. The current six default videos use the storage URLs in `src/data/videos.ts`; the first two are premium. On startup, a one-time migration replaces existing video records with these six URLs, keeps the first six existing thumbnails, and removes additional old records. Bunny CDN (`*.b-cdn.net`) playlists and segments are proxied by the app with the site's referrer; Bunny must allow public playback (turn off Bunny token authentication and any incompatible referrer restrictions). Premium playback is served through the app's access-controlled proxy. HLS child playlists, keys, and segments are proxied only when they remain on that stream's original HTTPS host and path; cross-host HLS references are rejected. Set `PREMIUM_MEDIA_PROTECTION_CONFIRMED=true` only after verifying that the media origin itself does not expose premium content publicly.
 
-Existing seeded videos remain free until changed in Admin Panel. Premium source URLs are excluded from public metadata and the frontend bundle. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure the private API token and protected video origins before production sales.
+The six current storage links are publicly accessible. Marking the first two as premium gates them in this app, but does not prevent someone from opening a public storage URL directly. Restrict those two files at the storage host before accepting paid premium access.
 
-The app runs on container port `3000` and does not configure domains, DNS, or TLS. Put your own reverse proxy or hosting-platform routing in front of that port. The SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
+Premium source URLs are excluded from public metadata and the frontend bundle. The one-time browser local-storage import does not restore the replaced video catalog. The FastLipa mock exists only in the automated test harness and is never imported by the application server. Tests are in `tests/premiumAccess.test.ts` and `tests/premiumIntegration.test.ts`; run `npm test` and `npm run lint`. No live FastLipa charge is made by the tests. Configure the private API token and protected video origins before production sales.
+
+The app runs on container port `3000` and does not configure domains, DNS, or TLS. With `docker-compose.yml`, port `3015` on the VPS maps to the app's container port `3000`; point a local reverse proxy at `http://127.0.0.1:3015`. Dockdeploy exposes the container port `3000` for its own routing. The SQLite file lives in the VPS project directory at `./data/blog.sqlite`.
 
 ### 1. Configure your hosting platform
 
-Configure your domain, DNS, HTTPS certificate, and reverse proxy independently of this application. The proxy must forward requests to the app on port `3000`. If exposing the VPS port directly, allow TCP port `3000` in the firewall; otherwise only allow traffic from the proxy.
+Configure your domain, DNS, HTTPS certificate, and reverse proxy independently of this application. With the VPS `docker-compose.yml`, forward requests to `127.0.0.1:3015`. The app port is bound to loopback and should not be exposed directly to the internet.
 
 ```sh
 sudo ufw allow OpenSSH
-sudo ufw allow 3000/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 sudo ufw enable
 sudo ufw status
 ```
@@ -191,14 +194,14 @@ Check app startup and health with:
 ```sh
 sudo docker compose ps
 sudo docker compose logs --tail=100 blog
-curl -I http://localhost:3000/admin
-curl -sS -o /dev/null -w 'content API: %{http_code}\n' http://localhost:3000/api/content
+curl -I http://localhost:3015/admin
+curl -sS -o /dev/null -w 'content API: %{http_code}\n' http://localhost:3015/api/content
 ```
 
 `/admin`, `/api/content`, and `/api/access/status` should return `200`:
 
 ```sh
-curl -sS -o /dev/null -w 'access API: %{http_code}\n' http://localhost:3000/api/access/status
+curl -sS -o /dev/null -w 'access API: %{http_code}\n' http://localhost:3015/api/access/status
 ```
 
 If `blog` is unhealthy, inspect its logs before exposing the site; production startup intentionally fails if the admin email/password are blank or still sample values.
@@ -225,4 +228,4 @@ sudo docker compose exec -T blog node --input-type=module -e "import Database fr
 
 The backup appears under `/opt/blog/data`. Copy backups off the VPS as well; a backup on the same disk does not protect against disk loss. Keep `.env`, the database, and media assets/URLs under your normal private backup and recovery procedures.
 
-`ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `DB_PATH` are server-side settings. Never expose them using a `VITE_` prefix or in client-side code. If browser content from the old local-storage version must be migrated, sign in once on the browser that contains it; the existing one-time migration imports posts, videos, and gallery images.
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `DB_PATH` are server-side settings. Never expose them using a `VITE_` prefix or in client-side code. If browser content from the old local-storage version must be migrated, sign in once on the browser that contains it; the existing one-time migration imports posts and gallery images.

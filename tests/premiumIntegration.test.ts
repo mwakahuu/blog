@@ -9,6 +9,7 @@ import path from 'node:path';
 import test from 'node:test';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'node:url';
+import { SEEDED_VIDEOS } from '../src/data/videoSeeds';
 
 type VideoRow = { id: string; data: string };
 
@@ -47,6 +48,32 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   const databasePath = path.join(tempDirectory, 'blog.sqlite');
   const port = await getAvailablePort();
   const origin = `http://127.0.0.1:${port}`;
+  const existingDatabase = new Database(databasePath);
+  existingDatabase.exec(`
+    create table videos (
+      id text primary key,
+      data text not null,
+      created_at integer not null default (unixepoch())
+    )
+  `);
+  const insertExistingVideo = existingDatabase.prepare('insert into videos (id, data) values (?, ?)');
+  for (let index = 0; index < 8; index += 1) {
+    insertExistingVideo.run(`legacy-video-${index + 1}`, JSON.stringify({
+      id: `legacy-video-${index + 1}`,
+      title: `Existing video ${index + 1}`,
+      duration: '5:00',
+      views: '1K views',
+      uploadDate: 'Yesterday',
+      thumbnail: `https://covers.test/${index + 1}.jpg`,
+      videoUrl: 'https://old.example/video.mp4',
+      isPremium: false,
+      channelName: 'Existing channel',
+      description: 'Existing description',
+      likes: '1K',
+    }));
+  }
+  existingDatabase.close();
+
   const child = spawn(process.execPath, ['--import', 'tsx', '--import', './tests/mockPaymentProvider.ts', 'server.ts'], {
     cwd: projectRoot,
     env: {
@@ -74,6 +101,14 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   await waitForServer(child, origin);
   const database = new Database(databasePath);
   const rows = database.prepare('select id, data from videos order by id').all() as VideoRow[];
+  assert.equal(rows.length, 6);
+  for (const [index, row] of rows.entries()) {
+    const video = JSON.parse(row.data) as Record<string, unknown>;
+    assert.equal(row.id, `legacy-video-${index + 1}`);
+    assert.equal(video.videoUrl, SEEDED_VIDEOS[index].videoUrl);
+    assert.equal(video.isPremium, index < 2);
+    assert.equal(video.thumbnail, `https://covers.test/${index + 1}.jpg`);
+  }
   const premiumVideos = rows.slice(0, 2).map((row, index) => {
     const video = JSON.parse(row.data) as Record<string, unknown>;
     video.isPremium = true;
@@ -227,6 +262,19 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(segmentResponse.headers.get('content-range'), 'bytes 0-1/4');
 
   const databaseForAssertions = new Database(databasePath);
+  const premiumMp4 = JSON.parse(rows[0].data) as Record<string, unknown>;
+  premiumMp4.videoUrl = 'https://cdn.test/video-1/video.mp4';
+  databaseForAssertions.prepare('update videos set data = ? where id = ?')
+    .run(JSON.stringify(premiumMp4), premiumVideos[0]);
+  const premiumMp4PlaybackResponse = await request(`/api/videos/${premiumVideos[0]}/playback`);
+  const premiumMp4Playback = await premiumMp4PlaybackResponse.json() as { url: string; format: string };
+  assert.equal(premiumMp4PlaybackResponse.status, 200);
+  assert.equal(premiumMp4Playback.format, 'file');
+  assert.ok(premiumMp4Playback.url.startsWith(`/api/videos/${premiumVideos[0]}/stream?resource=`));
+  const premiumMp4RangeResponse = await request(premiumMp4Playback.url, { headers: { Range: 'bytes=0-1' } });
+  assert.equal(premiumMp4RangeResponse.status, 206);
+  assert.equal(premiumMp4RangeResponse.headers.get('content-range'), 'bytes 0-1/4');
+
   const paymentRow = databaseForAssertions.prepare('select id from payments where reference = ?')
     .get(paid.reference) as { id: string };
   const entitlementCount = (databaseForAssertions.prepare('select count(*) as count from entitlements').get() as { count: number }).count;

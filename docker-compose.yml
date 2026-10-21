@@ -6,10 +6,10 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 3015
+      PORT: 3000
       DB_PATH: /data/blog.sqlite
     ports:
-      - "3015:3015"
+      - "127.0.0.1:3015:3000"
     volumes:
       - ./data:/data
     init: true
