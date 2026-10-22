@@ -41,7 +41,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
     });
   }
 
-  if (url.hostname === 'cdn.test' || url.hostname.endsWith('.b-cdn.net')) {
+  if (url.hostname === 'cdn.test' || url.hostname === 'res.cloudinary.com' || url.hostname.endsWith('.b-cdn.net')) {
     if (url.hostname.endsWith('.b-cdn.net') && !new Headers(init?.headers).has('referer')) {
       return new Response('Bunny referrer is missing.', { status: 403 });
     }

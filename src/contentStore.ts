@@ -73,7 +73,7 @@ export const abandonPremiumPayment = (reference: string) =>
 export const fetchPremiumPaymentStatus = (reference: string) =>
   request<PremiumPaymentStatus>(`/payments/status/${encodeURIComponent(reference)}`);
 
-export const fetchPremiumPlayback = (videoId: string) =>
+export const fetchVideoPlayback = (videoId: string) =>
   request<{ url: string; format: 'hls' | 'file' }>(`/videos/${encodeURIComponent(videoId)}/playback`);
 
 export const fetchAdminSession = async () => {

@@ -648,8 +648,7 @@ app.get('/api/videos/:id/playback', (request, response) => {
   }
   const source = new URL(videoUrl);
   const format = source.pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file';
-  const isBunnyCdn = source.hostname.toLowerCase().endsWith('.b-cdn.net');
-  if (!video.isPremium && !isBunnyCdn) {
+  if (!video.isPremium && source.protocol !== 'https:') {
     response.json({ url: videoUrl, format });
     return;
   }
@@ -658,7 +657,7 @@ app.get('/api/videos/:id/playback', (request, response) => {
     const resource = encodeURIComponent(`${source.pathname}${source.search}`);
     response.json({ url: `/api/videos/${encodeURIComponent(video.id)}/stream?resource=${resource}`, format });
   } catch {
-    response.status(503).json({ error: 'This premium video source is not configured for protected playback.' });
+    response.status(503).json({ error: 'This video source cannot be played through the secure stream.' });
   }
 });
 
@@ -692,9 +691,8 @@ app.get('/api/videos/:id/stream', async (request, response) => {
       const value = request.get(header);
       if (value) headers.set(header, value);
     }
-    const isBunnyCdn = source.hostname.toLowerCase().endsWith('.b-cdn.net');
     const referer = request.get('referer');
-    if (isBunnyCdn) headers.set('Referer', referer || `${request.protocol}://${request.get('host')}/`);
+    headers.set('Referer', referer || `${request.protocol}://${request.get('host')}/`);
     const upstream = await fetch(target, {
       headers,
       redirect: 'error',

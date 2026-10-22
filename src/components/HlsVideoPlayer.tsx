@@ -12,6 +12,16 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const showMediaError = (video: HTMLVideoElement) => {
+    const code = video.error?.code;
+    setErrorMessage(code === 2
+      ? 'Network error loading this video. Check that the storage host is reachable from the website.'
+      : code === 3
+        ? 'The video was downloaded but its encoding is not supported by this browser. Re-encode it as H.264 video with AAC audio in an MP4 container.'
+        : code === 4
+          ? 'This video URL or format is not supported. Use a direct MP4 file or an HLS playlist.'
+          : 'This video could not be played. Confirm its public URL and media format.');
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -89,7 +99,7 @@ export const HlsVideoPlayer: React.FC<HlsVideoPlayerProps> = ({ src, title, post
         controlsList="nodownload"
         preload="metadata"
         playsInline
-        onError={() => setErrorMessage('This video could not be played. Check that its URL is publicly accessible and the video format is supported.')}
+        onError={(event) => showMediaError(event.currentTarget)}
         aria-label={title}
       />
 

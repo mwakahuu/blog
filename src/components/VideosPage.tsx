@@ -7,11 +7,10 @@ import {
   createPremiumPayment,
   fetchPremiumAccessStatus,
   fetchPremiumPaymentStatus,
-  fetchPremiumPlayback,
+  fetchVideoPlayback,
   type PremiumAccessStatus,
 } from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
-import { normalizeVideoUrl } from '../videoUrl';
 
 const getPaymentInitiationMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
@@ -133,26 +132,15 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   useEffect(() => {
     if (!selectedVideo) return;
     setPlaybackError('');
-    if (!selectedVideo.isPremium) {
-      if (!selectedVideo.videoUrl) {
-        setPlaybackUrl(null);
-        return;
-      }
-      const videoUrl = normalizeVideoUrl(selectedVideo.videoUrl);
-      if (!videoUrl) {
-        setPlaybackUrl(null);
-        setPlaybackError('Kiungo cha video si sahihi au kina URL zaidi ya moja. Sasisha video kwa kuweka kiungo kimoja kamili.');
-        return;
-      }
-      setPlaybackUrl(videoUrl);
-      setPlaybackFormat(new URL(videoUrl).pathname.toLowerCase().endsWith('.m3u8') ? 'hls' : 'file');
+    if (!selectedVideo.isPremium && !selectedVideo.videoUrl) {
+      setPlaybackUrl(null);
       return;
     }
     setPlaybackUrl(null);
-    if (!accessStatus?.active) return;
+    if (selectedVideo.isPremium && !accessStatus?.active) return;
 
     let active = true;
-    fetchPremiumPlayback(selectedVideo.id)
+    fetchVideoPlayback(selectedVideo.id)
       .then(({ url, format }) => {
         if (active) {
           setPlaybackUrl(url);

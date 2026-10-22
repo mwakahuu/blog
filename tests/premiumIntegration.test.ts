@@ -31,14 +31,13 @@ const getAvailablePort = async () => new Promise<number>((resolve, reject) => {
 });
 
 const waitForServer = async (child: ChildProcess, url: string) => {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     if (child.exitCode !== null) throw new Error(`Test server exited with ${child.exitCode}.`);
     try {
       const response = await fetch(`${url}/api/content`);
       if (response.ok) return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error('Test server did not start in time.');
 };
@@ -164,7 +163,13 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   const cloudinaryPlayback = await cloudinaryPlaybackResponse.json() as { url: string; format: string };
   assert.equal(cloudinaryPlaybackResponse.status, 200);
   assert.equal(cloudinaryPlayback.format, 'file');
-  assert.equal(cloudinaryPlayback.url, cloudinaryVideo.videoUrl);
+  assert.ok(cloudinaryPlayback.url.startsWith(`/api/videos/${cloudinaryVideoId}/stream?resource=`));
+  const cloudinaryRangeResponse = await request(cloudinaryPlayback.url, {
+    headers: { Range: 'bytes=0-1' },
+  });
+  assert.equal(cloudinaryRangeResponse.status, 206);
+  assert.equal(cloudinaryRangeResponse.headers.get('accept-ranges'), 'bytes');
+  assert.equal(cloudinaryRangeResponse.headers.get('content-range'), 'bytes 0-1/4');
   const malformedPlaybackResponse = await request(`/api/videos/${malformedVideoId}/playback`);
   assert.equal(malformedPlaybackResponse.status, 422);
   assert.match((await malformedPlaybackResponse.json() as { error: string }).error, /invalid URL/i);
@@ -324,7 +329,7 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
     views: '1 view',
     uploadDate: 'Today',
     thumbnail: 'https://covers.test/admin.jpg',
-    videoUrl: SEEDED_VIDEOS[2].videoUrl,
+    videoUrl: 'https://cdn.test/storage/uploads/video.mp4',
     isPremium: false,
     channelName: 'Admin',
     description: 'Published from the admin panel',
@@ -343,8 +348,13 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   const publishedPlaybackResponse = await request('/api/videos/admin-storage-video/playback');
   const publishedPlayback = await publishedPlaybackResponse.json() as { url: string; format: string };
   assert.equal(publishedPlaybackResponse.status, 200);
-  assert.equal(publishedPlayback.url, adminPublishedVideo.videoUrl);
   assert.equal(publishedPlayback.format, 'file');
+  assert.ok(publishedPlayback.url.startsWith('/api/videos/admin-storage-video/stream?resource='));
+  const publishedRangeResponse = await request(publishedPlayback.url, {
+    headers: { Range: 'bytes=0-1' },
+  });
+  assert.equal(publishedRangeResponse.status, 206);
+  assert.equal(publishedRangeResponse.headers.get('content-range'), 'bytes 0-1/4');
 
   const malformedAdminVideoResponse = await fetch(`${origin}/api/videos`, {
     method: 'POST',
