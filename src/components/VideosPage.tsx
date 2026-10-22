@@ -134,6 +134,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
     setPlaybackError('');
     if (!selectedVideo.isPremium && !selectedVideo.videoUrl) {
       setPlaybackUrl(null);
+      setPlaybackError('Video source is missing. Update this video from the Admin Panel.');
       return;
     }
     setPlaybackUrl(null);
@@ -166,9 +167,11 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   }, [accessStatus?.active, accessStatus?.expiresAt]);
 
   const handleSelectVideo = (video: VideoItem) => {
+    const replayingCurrentVideo = selectedVideo?.id === video.id;
     setSelectedVideo(video);
     setPlaybackUrl(null);
     setPlaybackError('');
+    if (replayingCurrentVideo) setPlaybackRetry((value) => value + 1);
     if (video.isPremium && !accessStatus?.active) setIsPurchaseOpen(true);
     else setIsPurchaseOpen(false);
     window.scrollTo({ top: 180, behavior: 'smooth' });
@@ -250,7 +253,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                   <button type="button" onClick={openPurchase}>Lipia kutazama video zote</button>
                 </div>
               ) : playbackUrl ? (
-                <HlsVideoPlayer key={`${selectedVideo.id}-${playbackUrl}`} src={playbackUrl} title={selectedVideo.title} poster={selectedVideo.thumbnail} mediaType={playbackFormat} />
+                <HlsVideoPlayer key={`${selectedVideo.id}-${playbackRetry}-${playbackUrl}`} src={playbackUrl} title={selectedVideo.title} poster={selectedVideo.thumbnail} mediaType={playbackFormat} />
               ) : playbackError ? (
                 <div className="catalog-video-player-message" role="status">
                   <span>{playbackError}</span>
@@ -258,7 +261,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                 </div>
               ) : (
                 <div className="catalog-video-player-message" role="status">
-                  {selectedVideo.isPremium ? <LoaderCircle className="animate-spin" size={24} aria-label="Inapakia video" /> : 'Video stream haijawekwa.'}
+                  <LoaderCircle className="animate-spin" size={24} aria-label="Inapakia video" />
                 </div>
               )}
             </div>
