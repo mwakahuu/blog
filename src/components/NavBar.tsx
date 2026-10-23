@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ViewMode } from '../types';
 
 interface NavBarProps {
@@ -14,27 +14,48 @@ export const NavBar: React.FC<NavBarProps> = ({
   onOpenSearch,
   onOpenWatch,
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
-    <nav className="bg-[#dc2626] text-white shadow-md relative z-40 select-none">
-      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between px-4 sm:px-6 lg:px-8">
+    <nav aria-label="Main navigation" className="bg-[#dc2626] text-white shadow-md relative z-40 select-none">
+      <div className="max-w-[1400px] mx-auto flex items-stretch justify-between px-3 sm:px-6 lg:px-8">
         {/* Left Navigation Links */}
         <div className="flex items-center">
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-white hover:bg-red-700 rounded mr-2 cursor-pointer"
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          <div className="grid grid-cols-2 gap-2 w-full py-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => onNavigate('videos')}
+              aria-current={currentView === 'videos' ? 'page' : undefined}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-extrabold uppercase tracking-wide shadow-sm transition-colors cursor-pointer ${
+                currentView === 'videos'
+                  ? 'bg-white text-red-700 ring-2 ring-white/50'
+                  : 'bg-[#1e293b] text-white hover:bg-[#0f172a]'
+              }`}
+            >
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Videos
+              <span className={`rounded px-1.5 py-0.5 text-[9px] font-black tracking-widest ${
+                currentView === 'videos' ? 'bg-red-100 text-red-700' : 'bg-white/15 text-red-200'
+              }`}>
+                WATCH
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('shop')}
+              aria-current={currentView === 'shop' ? 'page' : undefined}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-extrabold uppercase tracking-wide shadow-sm transition-colors cursor-pointer ${
+                currentView === 'shop'
+                  ? 'bg-white text-red-700 ring-2 ring-white/50'
+                  : 'bg-[#1e293b] text-white hover:bg-[#0f172a]'
+              }`}
+            >
+              <svg className="h-5 w-5 fill-none stroke-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l2.2 11.2a2 2 0 0 0 2 1.6h8.9a2 2 0 0 0 2-1.6L22 7H6M10 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+              </svg>
+              Shop
+            </button>
+          </div>
 
           {/* Desktop Nav Items */}
           <div className="hidden lg:flex items-stretch text-sm font-semibold">
@@ -104,7 +125,7 @@ export const NavBar: React.FC<NavBarProps> = ({
         </div>
 
         {/* Right Nav Utilities: Watch & Search */}
-        <div className="flex items-stretch">
+        <div className="hidden lg:flex items-stretch">
           {/* Watch Button -> Navigates directly to videos page */}
           <button
             onClick={() => onNavigate('videos')}
@@ -133,65 +154,6 @@ export const NavBar: React.FC<NavBarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#b91c1c] border-t border-red-800 px-4 py-3 space-y-1">
-          <button
-            onClick={() => {
-              onNavigate('home');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Home
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('articles');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Articles
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('shop');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Shop
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('videos');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Videos
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('gallery');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Photo Gallery
-          </button>
-          <button
-            onClick={() => {
-              onNavigate('contact');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm font-semibold rounded hover:bg-red-700 text-white cursor-pointer"
-          >
-            Contact
-          </button>
-        </div>
-      )}
     </nav>
   );
 };
