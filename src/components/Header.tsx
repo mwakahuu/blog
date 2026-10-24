@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome, onAdClick }) => 
             CHOMBEZO
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 font-medium tracking-wide mt-0.5">
-            Habari · Burudani · Video · Picha
+            VIDEO ZA KUTOMBANA
           </p>
         </div>
 

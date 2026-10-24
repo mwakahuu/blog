@@ -66,7 +66,7 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
       thumbnail: `https://covers.test/${index + 1}.jpg`,
       videoUrl: 'https://old.example/video.mp4',
       isPremium: false,
-      channelName: 'Existing channel',
+      channelName: index === 0 ? 'MagazineSpare TV Broadcast' : 'Existing channel',
       description: 'Existing description',
       likes: '1K',
     }));
@@ -107,6 +107,7 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
     assert.equal(video.videoUrl, SEEDED_VIDEOS[index].videoUrl);
     assert.equal(video.isPremium, index < 2);
     assert.equal(video.thumbnail, `https://covers.test/${index + 1}.jpg`);
+    if (index === 0) assert.equal(video.channelName, 'Chombezo Videos');
   }
   const premiumVideos = rows.slice(0, 2).map((row, index) => {
     const video = JSON.parse(row.data) as Record<string, unknown>;
@@ -140,7 +141,11 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   };
 
   const contentResponse = await request('/api/content');
-  const content = await contentResponse.json() as { videos: Array<Record<string, unknown>> };
+  const content = await contentResponse.json() as {
+    videos: Array<Record<string, unknown>>;
+    featuredVideoId: string | null;
+  };
+  assert.equal(content.featuredVideoId, content.videos[0]?.id);
   for (const id of premiumVideos) {
     const publicVideo = content.videos.find((video) => video.id === id);
     assert.equal(publicVideo?.isPremium, true);
@@ -174,6 +179,11 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(malformedPlaybackResponse.status, 422);
   assert.match((await malformedPlaybackResponse.json() as { error: string }).error, /invalid URL/i);
   assert.equal((await request('/api/admin/videos')).status, 401);
+  assert.equal((await request('/api/admin/featured-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId: freeVideoId }),
+  })).status, 401);
   assert.equal((await request('/api/payments/create', {
     method: 'POST',
     headers: { Origin: 'https://attacker.example', 'Content-Type': 'application/json' },
@@ -195,10 +205,23 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(pendingResponse.status, 202);
   const pending = await pendingResponse.json() as { reference: string; amount: number };
   assert.equal(pending.amount, 3000);
+  assert.match(pending.reference, /^books-/);
   const pendingStatus = await request(`/api/payments/status/${encodeURIComponent(pending.reference)}`);
   assert.equal((await pendingStatus.json() as { status: string }).status, 'pending');
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
   assert.equal((await request(`/api/videos/${premiumVideos[0]}/playback`)).status, 403);
+
+  const rejectedInitiation = await fetch(`${origin}/api/payments/create`, {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: '0699999999' }),
+  });
+  assert.equal(rejectedInitiation.status, 502);
+  assert.deepEqual(await rejectedInitiation.json(), {
+    error: 'FastLipa could not start the payment. Please try again.',
+    providerCode: 'TEST_REJECTED',
+    providerMessage: 'Test payment rejection.',
+  });
 
   const abandonResponse = await request('/api/payments/abandon', {
     method: 'POST',
@@ -318,6 +341,31 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(adminLogin.status, 200);
   const adminCookie = adminLogin.headers.get('set-cookie')?.split(';')[0];
   assert.ok(adminCookie);
+  const featureResponse = await fetch(`${origin}/api/admin/featured-video`, {
+    method: 'POST',
+    headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId: freeVideoId }),
+  });
+  assert.equal(featureResponse.status, 200);
+  assert.deepEqual(await featureResponse.json(), { featuredVideoId: freeVideoId });
+  const updatedContent = await fetch(`${origin}/api/content`);
+  assert.equal((await updatedContent.json() as { featuredVideoId: string }).featuredVideoId, freeVideoId);
+  const invalidFeatureResponse = await fetch(`${origin}/api/admin/featured-video`, {
+    method: 'POST',
+    headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId: 'missing-video' }),
+  });
+  assert.equal(invalidFeatureResponse.status, 404);
+  const resetFeatureResponse = await fetch(`${origin}/api/admin/featured-video`, {
+    method: 'POST',
+    headers: { Cookie: adminCookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId: null }),
+  });
+  assert.equal(resetFeatureResponse.status, 200);
+  assert.equal(
+    (await resetFeatureResponse.json() as { featuredVideoId: string }).featuredVideoId,
+    content.videos[0].id,
+  );
   const adminVideos = await fetch(`${origin}/api/admin/videos`, { headers: { Cookie: adminCookie } });
   const adminVideoList = await adminVideos.json() as Array<{ id: string; videoUrl?: string; isPremium?: boolean }>;
   assert.equal(adminVideoList.find((video) => video.id === premiumVideos[0])?.isPremium, true);

@@ -3,6 +3,7 @@ import { Comment, GalleryImage, Post, ShopProduct, VideoItem } from './types';
 type ContentResponse = {
   posts: Post[];
   videos: VideoItem[];
+  featuredVideoId: string | null;
   galleryImages: GalleryImage[];
   products: ShopProduct[];
 };
@@ -45,7 +46,17 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     console.info(`[payment-debug] ${init?.method ?? 'GET'} ${path}: HTTP ${response.status}; redirected=${response.redirected}`);
   }
 
-  const result = await response.json().catch(() => ({})) as { error?: string };
+  const result = await response.json().catch(() => ({})) as {
+    error?: string;
+    providerCode?: string;
+    providerMessage?: string;
+  };
+  if (import.meta.env.DEV && path === '/payments/create' && (result.providerCode || result.providerMessage)) {
+    console.info('[payment-debug] FastLipa rejection details:', {
+      code: result.providerCode,
+      message: result.providerMessage,
+    });
+  }
   if (!response.ok) {
     throw new ApiRequestError(result.error || `Request failed (${response.status}).`, response.status);
   }
@@ -55,6 +66,12 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
 export const fetchContent = () => request<ContentResponse>('/content');
 
 export const fetchAdminVideos = () => request<VideoItem[]>('/admin/videos');
+
+export const setFeaturedVideo = (videoId: string | null) =>
+  request<{ featuredVideoId: string | null }>('/admin/featured-video', {
+    method: 'POST',
+    body: JSON.stringify({ videoId }),
+  });
 
 export const fetchPremiumAccessStatus = () => request<PremiumAccessStatus>('/access/status');
 

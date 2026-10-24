@@ -28,7 +28,7 @@ export const VIDEOS: VideoItem[] = Array.from({ length: 6 }, (_, index) => {
     views: `${(15 + (index * 12) % 350)}K views`,
     uploadDate: `${((index % 6) + 1)} days ago`,
     thumbnail: POSTER_IMAGES[index % POSTER_IMAGES.length],
-    channelName: 'MagazineSpare TV Broadcast',
+    channelName: 'Chombezo Videos',
     description: `Original web video stream in ${quality} resolution. Tap play to stream seamlessly via the Video.js web media player.`,
     likes: `${(1.2 + (index * 0.4)).toFixed(1)}K`,
   };

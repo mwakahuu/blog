@@ -41,6 +41,7 @@ import {
   savePost,
   saveProduct,
   saveVideo,
+  setFeaturedVideo as saveFeaturedVideo,
   type LegacyContent,
 } from './contentStore';
 
@@ -83,10 +84,12 @@ export default function App() {
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [videos, setVideos] = useState<VideoItem[]>(VIDEOS);
   const [adminVideos, setAdminVideos] = useState<VideoItem[]>([]);
+  const [featuredVideoId, setFeaturedVideoId] = useState<string | null>(VIDEOS[0]?.id ?? null);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(INITIAL_GALLERY_IMAGES);
   const [products, setProducts] = useState<ShopProduct[]>(PRODUCTS);
   const [currentView, setCurrentView] = useState<ViewMode>(getViewFromPath);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [requestedVideoId, setRequestedVideoId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(true);
@@ -105,6 +108,7 @@ export default function App() {
         if (!active) return;
         setPosts(content.posts);
         setVideos(content.videos);
+        setFeaturedVideoId(content.featuredVideoId);
         setGalleryImages(content.galleryImages);
         setProducts(content.products);
         setContentError('');
@@ -145,6 +149,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (currentView === 'videos' && requestedVideoId) setRequestedVideoId(null);
+  }, [currentView, requestedVideoId]);
+
+  useEffect(() => {
     if (!posts.length) {
       setSelectedPost(null);
       return;
@@ -165,6 +173,11 @@ export default function App() {
     setSelectedPost(post);
     setCurrentView('post');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePlayVideo = (video: VideoItem) => {
+    setRequestedVideoId(video.id);
+    handleNavigate('videos');
   };
 
   const handleNavigate = (view: ViewMode) => {
@@ -200,6 +213,7 @@ export default function App() {
   const refreshVideoLists = async () => {
     const [content, adminVideoList] = await Promise.all([fetchContent(), fetchAdminVideos()]);
     setVideos(content.videos);
+    setFeaturedVideoId(content.featuredVideoId);
     setAdminVideos(adminVideoList);
   };
 
@@ -239,6 +253,11 @@ export default function App() {
   const handleDeleteVideo = async (videoId: string) => {
     await removeVideo(videoId);
     await refreshVideoLists();
+  };
+
+  const handleSetFeaturedVideo = async (videoId: string | null) => {
+    const result = await saveFeaturedVideo(videoId);
+    setFeaturedVideoId(result.featuredVideoId);
   };
 
   const handleAddGalleryImage = async (image: GalleryImage) => {
@@ -347,6 +366,8 @@ export default function App() {
             <MainGrid
               posts={posts}
               onSelectPost={handleSelectPost}
+              featuredVideo={videos.find((video) => video.id === featuredVideoId) ?? videos[0]}
+              onSelectVideo={handlePlayVideo}
             />
 
             {products[0] && <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -508,6 +529,7 @@ export default function App() {
         {currentView === 'videos' && (
           <VideosPage
             videos={videos}
+            initialVideoId={requestedVideoId ?? undefined}
           />
         )}
 
@@ -522,6 +544,7 @@ export default function App() {
           <AdminPanelPage
             posts={posts}
             videos={adminVideos}
+            featuredVideoId={featuredVideoId}
             galleryImages={galleryImages}
             products={products}
             requiresAdminAuth
@@ -536,6 +559,7 @@ export default function App() {
             onAddVideo={handleAddVideo}
             onUpdateVideo={handleUpdateVideo}
             onDeleteVideo={handleDeleteVideo}
+            onSetFeaturedVideo={handleSetFeaturedVideo}
             onAddGalleryImage={handleAddGalleryImage}
             onDeleteGalleryImage={handleDeleteGalleryImage}
             onAddProduct={handleAddProduct}

@@ -25,12 +25,28 @@ const getPaymentInitiationMessage = (error: unknown) => {
 
 interface VideosPageProps {
   videos: VideoItem[];
+  initialVideoId?: string;
 }
+
+const shuffleVideos = (videos: VideoItem[], excludedId?: string) => {
+  const shuffled = videos.filter((video) => video.id !== excludedId);
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+};
 
 export const VideosPage: React.FC<VideosPageProps> = ({
   videos,
+  initialVideoId,
 }) => {
-  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(videos[0] ?? null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(
+    videos.find((video) => video.id === initialVideoId) ?? videos[0] ?? null
+  );
+  const [recommendedVideos, setRecommendedVideos] = useState<VideoItem[]>(
+    () => shuffleVideos(videos, initialVideoId ?? videos[0]?.id)
+  );
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(() => new Set());
   const [accessStatus, setAccessStatus] = useState<PremiumAccessStatus | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
@@ -54,9 +70,10 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   useEffect(() => {
     setSelectedVideo((current) => {
       if (!videos.length) return null;
-      return current ? videos.find((video) => video.id === current.id) ?? videos[0] : videos[0];
+      return videos.find((video) => video.id === (initialVideoId ?? current?.id)) ?? videos[0];
     });
-  }, [videos]);
+    setRecommendedVideos(shuffleVideos(videos, initialVideoId ?? selectedVideo?.id));
+  }, [videos, initialVideoId]);
 
   useEffect(() => {
     let active = true;
@@ -169,6 +186,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
   const handleSelectVideo = (video: VideoItem) => {
     const replayingCurrentVideo = selectedVideo?.id === video.id;
     setSelectedVideo(video);
+    setRecommendedVideos(shuffleVideos(videos, video.id));
     setPlaybackUrl(null);
     setPlaybackError('');
     if (replayingCurrentVideo) setPlaybackRetry((value) => value + 1);
@@ -235,7 +253,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <section className="lg:col-span-8">
           <div className="catalog-panel mb-5">
-            <h1 className="catalog-panel-heading">Video za Chombezo</h1>
+            <h1 className="catalog-panel-heading">Chombezo Videos</h1>
           </div>
 
           {paymentPhase === 'success' && (
@@ -306,16 +324,14 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           </div> : <div className="catalog-video-empty">Hakuna video zilizochapishwa kwa sasa.</div>}
 
           <div className="catalog-panel mt-5">
-            <h2 className="catalog-panel-heading">Latest Videos</h2>
+            <h2 className="catalog-panel-heading">More Videos</h2>
             <div className="catalog-video-grid p-4">
-              {videos.map((video) => {
-                const isSelected = video.id === selectedVideo?.id;
-                return (
+              {recommendedVideos.map((video) => (
                   <button
                     key={video.id}
                     type="button"
                     onClick={() => handleSelectVideo(video)}
-                    className={`catalog-video-card group ${isSelected ? 'catalog-video-card-selected' : ''}`}
+                    className="catalog-video-card group"
                   >
                     <span className="catalog-video-thumbnail">
                       <img
@@ -333,8 +349,10 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                       <span className="catalog-video-card-meta">{video.uploadDate}</span>
                     </span>
                   </button>
-                );
-              })}
+              ))}
+              {!recommendedVideos.length && (
+                <p className="p-4 text-sm text-slate-500">Hakuna video nyingine kwa sasa.</p>
+              )}
             </div>
           </div>
         </section>
@@ -343,7 +361,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
           <section className="catalog-panel">
             <h2 className="catalog-panel-heading">Video nyingine</h2>
             <div className="flex flex-col divide-y divide-slate-200">
-              {videos.filter((video) => video.id !== selectedVideo?.id).map((video) => (
+              {recommendedVideos.map((video) => (
                 <button
                   key={video.id}
                   type="button"
@@ -373,7 +391,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                   </span>
                 </button>
               ))}
-              {videos.length <= (selectedVideo ? 1 : 0) && (
+              {!recommendedVideos.length && (
                 <p className="p-4 text-sm text-slate-500">Hakuna video nyingine kwa sasa.</p>
               )}
             </div>

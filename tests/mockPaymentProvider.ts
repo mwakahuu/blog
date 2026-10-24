@@ -8,6 +8,13 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
 
   if (url.hostname === 'api.fastlipa.com' && url.pathname === '/v1/transaction/create') {
     const payload = JSON.parse(String(init?.body)) as { number: string; amount: number; reference: string };
+    if (payload.number === '255699999999') {
+      return Response.json({
+        status: false,
+        code: 'TEST_REJECTED',
+        message: 'Test payment rejection.',
+      }, { status: 422 });
+    }
     const tranID = `mock-${randomUUID()}`;
     transactions.set(tranID, {
       reference: payload.reference,

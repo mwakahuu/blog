@@ -5,6 +5,7 @@ import { normalizeVideoUrl } from '../videoUrl';
 interface AdminPanelPageProps {
   posts: Post[];
   videos: VideoItem[];
+  featuredVideoId: string | null;
   galleryImages: GalleryImage[];
   products: ShopProduct[];
   requiresAdminAuth: boolean;
@@ -19,6 +20,7 @@ interface AdminPanelPageProps {
   onAddVideo: (video: VideoItem) => Promise<void>;
   onUpdateVideo: (video: VideoItem) => Promise<void>;
   onDeleteVideo: (videoId: string) => Promise<void>;
+  onSetFeaturedVideo: (videoId: string | null) => Promise<void>;
   onAddGalleryImage: (image: GalleryImage) => Promise<void>;
   onDeleteGalleryImage: (imageId: string) => Promise<void>;
   onAddProduct: (product: ShopProduct) => Promise<void>;
@@ -29,6 +31,7 @@ interface AdminPanelPageProps {
 export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   posts,
   videos,
+  featuredVideoId,
   galleryImages,
   products,
   requiresAdminAuth,
@@ -43,6 +46,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
   onAddVideo,
   onUpdateVideo,
   onDeleteVideo,
+  onSetFeaturedVideo,
   onAddGalleryImage,
   onDeleteGalleryImage,
   onAddProduct,
@@ -269,7 +273,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
         thumbnail: videoThumbnailLink.trim(),
         videoUrl: normalizedVideoUrl,
         isPremium: videoIsPremium,
-        channelName: 'CHOMBEZO Video',
+        channelName: 'Chombezo Videos',
         description: videoDescription.trim(),
         likes: '1.2K',
       };
@@ -1001,6 +1005,26 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
             <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-slate-900 mb-6 font-condensed">
               Current Video Catalog ({videos.length} Videos)
             </h3>
+
+            <label className="mb-6 block max-w-xl text-sm font-bold text-slate-800">
+              Video pinned on the home page
+              <select
+                value={featuredVideoId ?? ''}
+                onChange={(event) => {
+                  const videoId = event.target.value || null;
+                  setActionError('');
+                  void onSetFeaturedVideo(videoId).catch((error: unknown) => {
+                    setActionError(error instanceof Error ? error.message : 'Unable to update the featured video.');
+                  });
+                }}
+                className="mt-2 w-full border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium"
+              >
+                <option value="">Automatically feature the first video</option>
+                {videos.map((video) => (
+                  <option key={video.id} value={video.id}>{video.title}</option>
+                ))}
+              </select>
+            </label>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-700 border border-slate-200 divide-y divide-slate-200">

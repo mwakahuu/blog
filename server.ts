@@ -103,6 +103,22 @@ const seedDefaults = database.transaction(() => {
 });
 seedDefaults();
 
+const updateVideoChannelBrand = database.transaction(() => {
+  const migrationKey = 'video_channel_brand_updated';
+  if (database.prepare('select value from app_settings where key = ?').get(migrationKey)) return;
+
+  const existingVideos = database.prepare('select id, data from videos').all() as Array<{ id: string; data: string }>;
+  const updateVideo = database.prepare('update videos set data = ? where id = ?');
+  for (const existing of existingVideos) {
+    const video = JSON.parse(existing.data) as VideoItem;
+    if (video.channelName === 'MagazineSpare TV Broadcast') {
+      updateVideo.run(JSON.stringify({ ...video, channelName: 'Chombezo Videos' }), existing.id);
+    }
+  }
+  database.prepare('insert into app_settings (key, value) values (?, ?)').run(migrationKey, 'true');
+});
+updateVideoChannelBrand();
+
 const replaceVideoCatalog = database.transaction(() => {
   const migrationKey = 'storage_video_catalog_replaced';
   if (database.prepare('select value from app_settings where key = ?').get(migrationKey)) return;
@@ -533,7 +549,7 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
   setPremiumCookie(response, token, flowExpiresAt);
 
   const paymentId = randomUUID();
-  const reference = `chombezo-${randomUUID()}`;
+  const reference = `books-${randomUUID()}`;
   database.transaction(() => {
     database.prepare(`
       update payments set dismissed_at = ?, updated_at = ?
@@ -561,13 +577,33 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     });
     const body: unknown = await result.json().catch(() => null);
     if (!result.ok || !isRecord(body) || body.status !== true || !isRecord(body.data)) {
+      const providerCode = isRecord(body) && typeof body.code === 'string'
+        ? body.code.slice(0, 80)
+        : undefined;
+      const providerMessage = isRecord(body) && typeof body.message === 'string'
+        ? body.message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 300)
+        : undefined;
+      console.error('[payment-error] FastLipa rejected payment initiation.', {
+        httpStatus: result.status,
+        providerCode,
+        providerMessage,
+      });
       database.prepare(`update payments set status = 'failed', updated_at = ? where id = ? and status = 'pending'`)
         .run(Date.now(), paymentId);
-      response.status(502).json({ error: 'FastLipa could not start the payment. Please try again.' });
+      response.status(502).json({
+        error: 'FastLipa could not start the payment. Please try again.',
+        ...(providerCode ? { providerCode } : {}),
+        ...(providerMessage ? { providerMessage } : {}),
+      });
       return;
     }
     const transactionId = body.data.tranID;
     if (typeof transactionId !== 'string' || !transactionId) {
+      console.error('[payment-error] FastLipa accepted payment without a transaction identifier.', {
+        httpStatus: result.status,
+      });
+      database.prepare(`update payments set status = 'failed', updated_at = ? where id = ? and status = 'pending'`)
+        .run(Date.now(), paymentId);
       response.status(502).json({ error: 'FastLipa did not return a transaction identifier.' });
       return;
     }
@@ -628,6 +664,33 @@ app.get('/api/payments/status/:reference', async (request, response) => {
 
 app.get('/api/admin/videos', requireAdmin, (_request, response) => {
   response.json(queryData<VideoItem>('select data from videos order by created_at desc'));
+});
+
+app.post('/api/admin/featured-video', requireAdmin, (request, response) => {
+  const videoId = isRecord(request.body) ? request.body.videoId : undefined;
+  if (videoId !== null && typeof videoId !== 'string') {
+    response.status(400).json({ error: 'A video ID or null is required.' });
+    return;
+  }
+  if (videoId !== null && !database.prepare('select 1 from videos where id = ?').get(videoId)) {
+    response.status(404).json({ error: 'The selected video does not exist.' });
+    return;
+  }
+
+  if (videoId === null) {
+    database.prepare('delete from app_settings where key = ?').run('featured_video_id');
+  } else {
+    database.prepare(`
+      insert into app_settings (key, value) values ('featured_video_id', ?)
+      on conflict(key) do update set value = excluded.value
+    `).run(videoId);
+  }
+
+  const savedId = database.prepare('select value from app_settings where key = ?')
+    .get('featured_video_id') as { value: string } | undefined;
+  const fallbackId = (database.prepare('select id from videos order by created_at desc limit 1')
+    .get() as { id: string } | undefined)?.id ?? null;
+  response.json({ featuredVideoId: savedId?.value ?? fallbackId });
 });
 
 app.get('/api/videos/:id/playback', (request, response) => {
@@ -729,6 +792,12 @@ app.get('/api/videos/:id/stream', async (request, response) => {
 
 app.get('/api/content', (_request, response) => {
   const posts = queryData<Post>('select data from posts order by created_at desc');
+  const videos = queryData<VideoItem>('select data from videos order by created_at desc');
+  const savedFeaturedVideo = database.prepare('select value from app_settings where key = ?')
+    .get('featured_video_id') as { value: string } | undefined;
+  const featuredVideoId = savedFeaturedVideo && videos.some((video) => video.id === savedFeaturedVideo.value)
+    ? savedFeaturedVideo.value
+    : videos[0]?.id ?? null;
   const comments = database.prepare('select post_id, data from post_comments order by created_at asc')
     .all() as Array<{ post_id: string; data: string }>;
   const commentsByPost = new Map<string, Comment[]>();
@@ -739,7 +808,8 @@ app.get('/api/content', (_request, response) => {
   }
   response.json({
     posts: posts.map((post) => ({ ...post, comments: commentsByPost.get(post.id) ?? [] })),
-    videos: queryData<VideoItem>('select data from videos order by created_at desc').map(publicVideo),
+    videos: videos.map(publicVideo),
+    featuredVideoId,
     galleryImages: queryData<GalleryImage>('select data from gallery_images order by created_at desc'),
     products: queryData<ShopProduct>('select data from products order by created_at desc'),
   });
@@ -833,6 +903,8 @@ app.post('/api/videos', requireAdmin, (request, response) => {
 
 app.delete('/api/videos/:id', requireAdmin, (request, response) => {
   database.prepare('delete from videos where id = ?').run(request.params.id);
+  database.prepare('delete from app_settings where key = ? and value = ?')
+    .run('featured_video_id', request.params.id);
   response.json({ success: true });
 });
 

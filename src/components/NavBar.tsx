@@ -33,7 +33,7 @@ export const NavBar: React.FC<NavBarProps> = ({
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              Videos
+              Chombezo Videos
               <span className={`rounded px-1.5 py-0.5 text-[9px] font-black tracking-widest ${
                 currentView === 'videos' ? 'bg-red-100 text-red-700' : 'bg-white/15 text-red-200'
               }`}>
@@ -96,7 +96,7 @@ export const NavBar: React.FC<NavBarProps> = ({
                 currentView === 'videos' ? 'bg-[#b91c1c] text-white' : 'hover:bg-red-700 text-white'
               }`}
             >
-              <span>Videos</span>
+              <span>Chombezo Videos</span>
               <span className="bg-black/30 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-widest">
                 HD
               </span>
@@ -132,7 +132,7 @@ export const NavBar: React.FC<NavBarProps> = ({
             className={`px-5 py-3.5 flex items-center gap-2 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer ${
               currentView === 'videos' ? 'bg-black text-red-400' : 'bg-[#1e293b] hover:bg-[#0f172a] text-white'
             }`}
-            title="Watch Web Videos"
+            title="Watch Chombezo Videos"
           >
             <svg className="w-4 h-4 fill-red-500" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
