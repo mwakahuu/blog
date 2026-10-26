@@ -42,7 +42,7 @@ const waitForServer = async (child: ChildProcess, url: string) => {
   throw new Error('Test server did not start in time.');
 };
 
-test('FastLipa purchases grant five-hour access and authorize every premium stream', async (t) => {
+test('PalmPesa purchases grant five-hour access and authorize every premium stream', async (t) => {
   const tempDirectory = mkdtempSync(path.join(os.tmpdir(), 'blog-premium-integration-'));
   const databasePath = path.join(tempDirectory, 'blog.sqlite');
   const port = await getAvailablePort();
@@ -82,7 +82,11 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
       DB_PATH: databasePath,
       ADMIN_EMAIL: 'admin@test.example',
       ADMIN_PASSWORD: 'test-only-admin-password-long-enough',
-      FASTLIPA_API_TOKEN: 'test-provider-token',
+      PALMPESA_API_TOKEN: 'test-provider-token',
+      APP_BASE_URL: 'https://wakubwa.chombezo.online',
+      PALMPESA_CALLBACK_URL: '',
+      PALMPESA_CUSTOMER_EMAIL: '',
+      PALMPESA_CUSTOMER_NAME: '',
       PREMIUM_MEDIA_PROTECTION_CONFIRMED: 'true',
     },
     stdio: 'ignore',
@@ -133,6 +137,7 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   let premiumCookie = '';
   const request = async (pathname: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
+    headers.set('X-Forwarded-Proto', 'https');
     if (premiumCookie) headers.set('Cookie', premiumCookie);
     const response = await fetch(`${origin}${pathname}`, { ...init, headers });
     const setCookie = response.headers.get('set-cookie');
@@ -146,6 +151,9 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
     featuredVideoId: string | null;
   };
   assert.equal(content.featuredVideoId, content.videos[0]?.id);
+  const callbackHealthResponse = await fetch(`${origin}/api/webhook/palmpesa`);
+  assert.equal(callbackHealthResponse.status, 200);
+  assert.deepEqual(await callbackHealthResponse.json(), { ready: true });
   for (const id of premiumVideos) {
     const publicVideo = content.videos.find((video) => video.id === id);
     assert.equal(publicVideo?.isPremium, true);
@@ -205,20 +213,21 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal(pendingResponse.status, 202);
   const pending = await pendingResponse.json() as { reference: string; amount: number };
   assert.equal(pending.amount, 3000);
-  assert.match(pending.reference, /^books-/);
+  assert.match(pending.reference, /^tx-/);
   const pendingStatus = await request(`/api/payments/status/${encodeURIComponent(pending.reference)}`);
+  assert.equal(pendingStatus.status, 200);
   assert.equal((await pendingStatus.json() as { status: string }).status, 'pending');
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
   assert.equal((await request(`/api/videos/${premiumVideos[0]}/playback`)).status, 403);
 
   const rejectedInitiation = await fetch(`${origin}/api/payments/create`, {
     method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Forwarded-Proto': 'https' },
     body: JSON.stringify({ phone: '0699999999' }),
   });
   assert.equal(rejectedInitiation.status, 502);
   assert.deepEqual(await rejectedInitiation.json(), {
-    error: 'FastLipa could not start the payment. Please try again.',
+    error: 'PalmPesa could not start the payment. Please try again.',
     providerCode: 'TEST_REJECTED',
     providerMessage: 'Test payment rejection.',
   });
@@ -426,5 +435,34 @@ test('FastLipa purchases grant five-hour access and authorize every premium stre
   assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, false);
   assert.equal((await request(`/api/videos/${premiumVideos[0]}/playback`)).status, 403);
   assert.equal((await request(`/api/videos/${freeVideoId}/playback`)).status, 200);
+
+  const callbackPaymentResponse = await request('/api/payments/create', {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: '0712345678' }),
+  });
+  assert.equal(callbackPaymentResponse.status, 202);
+  const callbackPayment = await callbackPaymentResponse.json() as { reference: string };
+  const callbackOrder = databaseForAssertions.prepare(`
+    select provider_transaction_id from payments where reference = ?
+  `).get(callbackPayment.reference) as { provider_transaction_id: string };
+  const sendPalmPesaCallback = (status: string) =>
+    request('/api/webhook/palmpesa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: callbackOrder.provider_transaction_id,
+        payment_status: status,
+      }),
+    });
+  const completedCallback = await sendPalmPesaCallback('COMPLETED');
+  assert.equal(completedCallback.status, 200);
+  assert.equal((await (await request('/api/access/status')).json() as { active: boolean }).active, true);
+  const duplicateCallback = await sendPalmPesaCallback('COMPLETED');
+  assert.equal(duplicateCallback.status, 200);
+  assert.equal(
+    (databaseForAssertions.prepare('select count(*) as count from entitlements').get() as { count: number }).count,
+    entitlementCount + 1,
+  );
   databaseForAssertions.close();
 });

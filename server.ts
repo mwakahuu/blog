@@ -22,7 +22,6 @@ import {
   PREMIUM_SESSION_COOKIE,
   publicVideo,
   normalizeTanzanianPhone,
-  normalizeTzsAmount,
   resolveAllowedMediaUrl,
   rewriteHlsManifest,
 } from './src/premiumAccess';
@@ -185,7 +184,9 @@ app.use((_request, response, next) => {
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
 });
-app.use('/api', express.json({ limit: '1mb' }));
+app.use('/api', express.json({
+  limit: '1mb',
+}));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -326,6 +327,7 @@ type PremiumSessionRow = {
 type PaymentRow = {
   id: string;
   reference: string;
+  provider: string;
   provider_transaction_id: string | null;
   amount_tzs: number;
   status: string;
@@ -395,38 +397,75 @@ const limitPaymentCreation: RequestHandler = (request, response, next) => {
   next();
 };
 
-const fastLipaHeaders = () => {
-  const token = process.env.FASTLIPA_API_TOKEN?.trim();
-  if (!token) throw new Error('FastLipa is not configured.');
-  return { Authorization: `Bearer ${token}`, Accept: 'application/json' };
+type PalmPesaPayment = {
+  transaction_id: string;
+  order_id: string;
+  status: string;
+  amount: number;
+  currency: 'TZS';
 };
 
-const readProviderTransaction = async (transactionId: string) => {
-  const url = new URL('https://api.fastlipa.com/v1/transaction/status');
-  url.searchParams.set('tranid', transactionId);
-  const result = await fetch(url, { headers: fastLipaHeaders(), signal: AbortSignal.timeout(12_000) });
+const getPalmPesaConfig = () => {
+  const token = process.env.PALMPESA_API_TOKEN?.trim();
+  const appBaseUrl = process.env.APP_BASE_URL?.trim() || 'https://wakubwa.chombezo.online';
+  const callbackUrl = process.env.PALMPESA_CALLBACK_URL?.trim() ||
+    new URL('/api/webhook/palmpesa', appBaseUrl).toString();
+  const customerEmail = process.env.PALMPESA_CUSTOMER_EMAIL?.trim() ||
+    'daviskavenuke@gmail.com';
+  const customerName = process.env.PALMPESA_CUSTOMER_NAME?.trim() || 'Juma Hassan Shaibu';
+  if (!token) return null;
+  return { token, callbackUrl, customerEmail, customerName };
+};
+
+const palmPesaHeaders = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  Accept: 'application/json',
+  'Content-Type': 'application/json',
+});
+
+const PALMPESA_BASE_URL = 'https://palmpesa.drmlelwa.co.tz';
+
+const readPalmPesaStatus = async (orderId: string, token: string): Promise<string> => {
+  const result = await fetch(`${PALMPESA_BASE_URL}/api/order-status`, {
+    method: 'POST',
+    headers: palmPesaHeaders(token),
+    body: JSON.stringify({ order_id: orderId }),
+    signal: AbortSignal.timeout(12_000),
+  });
   const body: unknown = await result.json().catch(() => null);
-  if (!result.ok || !isRecord(body) || body.status !== true || !isRecord(body.data)) {
-    throw new Error('FastLipa transaction status is unavailable.');
+  if (!result.ok) {
+    throw new Error(`PalmPesa order-status request failed (${result.status}).`);
   }
-  return body.data;
+  if (!isRecord(body) || !Array.isArray(body.data)) {
+    throw new Error('PalmPesa payment status response is invalid.');
+  }
+  const firstResult = body.data[0];
+  if (!isRecord(firstResult) || typeof firstResult.payment_status !== 'string') {
+    throw new Error('PalmPesa payment status response is invalid.');
+  }
+  return firstResult.payment_status.trim().toUpperCase();
 };
 
-const completePayment = (paymentId: string, providerData: Record<string, unknown>) => {
+const completePayment = (paymentId: string, providerData: PalmPesaPayment) => {
   const payment = database.prepare('select * from payments where id = ?').get(paymentId) as PaymentRow | undefined;
   if (
     !payment ||
-    providerData.payment_status !== 'COMPLETED' ||
-    normalizeTzsAmount(providerData.amount) !== payment.amount_tzs ||
-    typeof providerData.tranid !== 'string' ||
-    (payment.provider_transaction_id && providerData.tranid !== payment.provider_transaction_id)
+    payment.provider !== 'palmpesa' ||
+    providerData.status !== 'COMPLETED' ||
+    providerData.transaction_id !== payment.reference ||
+    providerData.order_id !== payment.provider_transaction_id ||
+    providerData.amount !== payment.amount_tzs ||
+    providerData.currency !== 'TZS'
   ) return false;
 
   const now = Date.now();
   return database.transaction(() => {
     const currentPayment = database.prepare('select * from payments where id = ?').get(paymentId) as PaymentRow | undefined;
     if (!currentPayment || currentPayment.status === 'completed') return currentPayment?.status === 'completed';
-    if (currentPayment.status !== 'pending' || !currentPayment.browser_session_id) return false;
+    if (
+      !['pending', 'failed', 'cancelled'].includes(currentPayment.status) ||
+      !currentPayment.browser_session_id
+    ) return false;
 
     const session = database.prepare(`
       select id, token_hash, entitlement_id, expires_at, revoked_at
@@ -458,7 +497,7 @@ const completePayment = (paymentId: string, providerData: Record<string, unknown
     database.prepare(`
       update payments set status = 'completed', provider_transaction_id = ?, entitlement_id = ?,
         confirmed_at = ?, updated_at = ? where id = ?
-    `).run(providerData.tranid, entitlementId, now, now, currentPayment.id);
+    `).run(providerData.order_id, entitlementId, now, now, currentPayment.id);
     database.prepare('update premium_sessions set entitlement_id = ?, expires_at = ? where id = ?')
       .run(entitlementId, window.expiresAt, session.id);
     return true;
@@ -518,18 +557,80 @@ app.post('/api/payments/abandon', sameOriginPaymentRequest, (request, response) 
   response.json({ abandoned: result.changes > 0 });
 });
 
+app.get('/api/webhook/palmpesa', (_request, response) => {
+  response.status(200).json({ ready: true });
+});
+
+app.post('/api/webhook/palmpesa', async (request, response) => {
+  const event = isRecord(request.body) ? request.body : null;
+  const orderId = event && typeof event.order_id === 'string' ? event.order_id : '';
+  const callbackStatus = event && typeof event.payment_status === 'string'
+    ? event.payment_status.trim().toUpperCase()
+    : '';
+  if (!orderId || !callbackStatus) {
+    response.status(400).json({ error: 'Invalid PalmPesa callback payload.' });
+    return;
+  }
+
+  const payment = database.prepare(`
+    select * from payments where provider_transaction_id = ? and provider = 'palmpesa'
+  `).get(orderId) as PaymentRow | undefined;
+  if (!payment) {
+    response.status(404).json({ error: 'PalmPesa payment could not be matched.' });
+    return;
+  }
+
+  try {
+    const config = getPalmPesaConfig();
+    if (!config) throw new Error('PalmPesa API token is not configured.');
+    const providerStatus = await readPalmPesaStatus(orderId, config.token);
+    if (providerStatus === 'COMPLETED') {
+      const verifiedPayment: PalmPesaPayment = {
+        transaction_id: payment.reference,
+        order_id: orderId,
+        status: providerStatus,
+        amount: payment.amount_tzs,
+        currency: 'TZS',
+      };
+      if (!completePayment(payment.id, verifiedPayment)) {
+        console.error('[payment-error] PalmPesa reported completion but access could not be applied.', {
+          paymentId: payment.id,
+          orderId,
+        });
+        response.status(502).json({ error: 'PalmPesa completion could not be verified.' });
+        return;
+      }
+    } else if (providerStatus === 'CANCELLED') {
+      markPaymentCancelled(payment.id);
+    } else if (providerStatus === 'FAILED' || providerStatus === 'REJECTED') {
+      markPaymentFailed(payment.id);
+    } else if (!['INITIATING', 'PENDING', 'AMBIGUOUS'].includes(providerStatus)) {
+      console.warn('[payment-warning] PalmPesa callback returned a non-final status.', {
+        orderId,
+        providerStatus,
+      });
+    }
+  } catch (error) {
+    console.error('[payment-error] PalmPesa callback processing failed.', error);
+    response.status(500).json({ error: 'PalmPesa callback could not be processed.' });
+    return;
+  }
+  response.status(200).send('OK');
+});
+
 app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation, async (request, response) => {
   const phone = normalizeTanzanianPhone(isRecord(request.body) ? request.body.phone : null);
   if (!phone) {
     response.status(400).json({ error: 'Enter a Tanzanian mobile number starting with 06 or 07.' });
     return;
   }
-  if (!process.env.FASTLIPA_API_TOKEN?.trim()) {
-    response.status(503).json({ error: 'Mobile money payment is not configured yet.' });
-    return;
-  }
   if (process.env.PREMIUM_MEDIA_PROTECTION_CONFIRMED !== 'true') {
     response.status(503).json({ error: 'Protected premium video delivery has not been confirmed by the site operator.' });
+    return;
+  }
+  const palmPesaConfig = getPalmPesaConfig();
+  if (!palmPesaConfig) {
+    response.status(503).json({ error: 'PalmPesa API token is not configured on the server.' });
     return;
   }
 
@@ -549,7 +650,7 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
   setPremiumCookie(response, token, flowExpiresAt);
 
   const paymentId = randomUUID();
-  const reference = `books-${randomUUID()}`;
+  const reference = `tx-${Date.now()}-${randomUUID()}`;
   database.transaction(() => {
     database.prepare(`
       update payments set dismissed_at = ?, updated_at = ?
@@ -557,61 +658,69 @@ app.post('/api/payments/create', sameOriginPaymentRequest, limitPaymentCreation,
     `).run(now, now, sessionId);
     database.prepare(`
       insert into payments (id, reference, provider, amount_tzs, currency, product_id, status, created_at, updated_at, browser_session_id)
-      values (?, ?, 'fastlipa', ?, 'TZS', ?, 'pending', ?, ?, ?)
+      values (?, ?, 'palmpesa', ?, 'TZS', ?, 'pending', ?, ?, ?)
     `).run(paymentId, reference, PREMIUM_PRICE_TZS, PREMIUM_PRODUCT_ID, now, now, sessionId);
   })();
 
-  const payload: Record<string, unknown> = {
-    number: phone,
+  const payload = {
+    transaction_id: reference,
     amount: PREMIUM_PRICE_TZS,
-    reference,
-    name: 'Chombezo Premium Videos',
+    phone: `0${phone.slice(3)}`,
+    name: palmPesaConfig.customerName,
+    email: palmPesaConfig.customerEmail,
+    callback_url: palmPesaConfig.callbackUrl,
+    address: 'Dar es Salaam',
+    postcode: '00000',
   };
 
   try {
-    const result = await fetch('https://api.fastlipa.com/v1/transaction/create', {
+    const result = await fetch(`${PALMPESA_BASE_URL}/api/palmpesa/initiate`, {
       method: 'POST',
-      headers: { ...fastLipaHeaders(), 'Content-Type': 'application/json' },
+      headers: palmPesaHeaders(palmPesaConfig.token),
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15_000),
     });
     const body: unknown = await result.json().catch(() => null);
-    if (!result.ok || !isRecord(body) || body.status !== true || !isRecord(body.data)) {
+    const orderId = isRecord(body) && typeof body.order_id === 'string' ? body.order_id : '';
+    if (!result.ok || !orderId) {
       const providerCode = isRecord(body) && typeof body.code === 'string'
         ? body.code.slice(0, 80)
         : undefined;
       const providerMessage = isRecord(body) && typeof body.message === 'string'
         ? body.message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 300)
+        : isRecord(body) && typeof body.error === 'string'
+          ? body.error.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 300)
         : undefined;
-      console.error('[payment-error] FastLipa rejected payment initiation.', {
+      const providerErrors = isRecord(body) && isRecord(body.errors)
+        ? Object.fromEntries(Object.entries(body.errors).map(([field, messages]) => [
+          field.slice(0, 80),
+          (Array.isArray(messages) ? messages : [messages])
+            .filter((message): message is string => typeof message === 'string')
+            .map((message) => message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 300)),
+        ]))
+        : undefined;
+      console.error('[payment-error] PalmPesa rejected payment initiation.', {
         httpStatus: result.status,
         providerCode,
         providerMessage,
+        providerErrors,
       });
       database.prepare(`update payments set status = 'failed', updated_at = ? where id = ? and status = 'pending'`)
         .run(Date.now(), paymentId);
       response.status(502).json({
-        error: 'FastLipa could not start the payment. Please try again.',
+        error: 'PalmPesa could not start the payment. Please try again.',
         ...(providerCode ? { providerCode } : {}),
         ...(providerMessage ? { providerMessage } : {}),
+        ...(providerErrors ? { providerErrors } : {}),
       });
-      return;
-    }
-    const transactionId = body.data.tranID;
-    if (typeof transactionId !== 'string' || !transactionId) {
-      console.error('[payment-error] FastLipa accepted payment without a transaction identifier.', {
-        httpStatus: result.status,
-      });
-      database.prepare(`update payments set status = 'failed', updated_at = ? where id = ? and status = 'pending'`)
-        .run(Date.now(), paymentId);
-      response.status(502).json({ error: 'FastLipa did not return a transaction identifier.' });
       return;
     }
     database.prepare('update payments set provider_transaction_id = ?, updated_at = ? where id = ?')
-      .run(transactionId, Date.now(), paymentId);
+      .run(orderId, Date.now(), paymentId);
     response.status(202).json({ reference, status: 'pending', amount: PREMIUM_PRICE_TZS, currency: 'TZS' });
-  } catch {
-    response.status(503).json({ error: 'FastLipa could not be reached. Check payment status before retrying.' });
+  } catch (error) {
+    console.error('[payment-error] PalmPesa could not be reached.', error);
+    response.status(503).json({ error: 'PalmPesa could not be reached. Check payment status before retrying.' });
   }
 });
 
@@ -624,26 +733,48 @@ app.get('/api/payments/status/:reference', async (request, response) => {
   }
   const payment = database.prepare('select * from payments where reference = ? and browser_session_id = ?')
     .get(request.params.reference, current.session.id) as PaymentRow | undefined;
-  if (!payment) {
+  if (!payment || payment.provider !== 'palmpesa') {
     response.status(404).json({ error: 'Payment status is unavailable.' });
     return;
   }
 
   if (payment.status === 'pending' && payment.provider_transaction_id) {
     try {
-      const providerData = await readProviderTransaction(payment.provider_transaction_id);
-      if (
-        providerData.tranid !== payment.provider_transaction_id ||
-        normalizeTzsAmount(providerData.amount) !== payment.amount_tzs
-      ) {
-        response.status(502).json({ error: 'FastLipa transaction details did not match this purchase.' });
+      const palmPesaConfig = getPalmPesaConfig();
+      if (!palmPesaConfig) {
+        response.status(503).json({ error: 'PalmPesa payment configuration is invalid.' });
         return;
       }
-      if (providerData.payment_status === 'COMPLETED') completePayment(payment.id, providerData);
-      else if (providerData.payment_status === 'CANCELLED') markPaymentCancelled(payment.id);
-      else if (providerData.payment_status === 'FAILED' || providerData.payment_status === 'REJECTED') markPaymentFailed(payment.id);
-    } catch {
-      response.status(503).json({ error: 'Payment confirmation is temporarily unavailable.' });
+      const providerStatus = await readPalmPesaStatus(payment.provider_transaction_id, palmPesaConfig.token);
+      if (providerStatus === 'COMPLETED') {
+        const verifiedPayment: PalmPesaPayment = {
+          transaction_id: payment.reference,
+          order_id: payment.provider_transaction_id,
+          status: providerStatus,
+          amount: payment.amount_tzs,
+          currency: 'TZS',
+        };
+        if (!completePayment(payment.id, verifiedPayment)) {
+          console.error('[payment-error] PalmPesa reported completion but access could not be applied.', {
+            paymentId: payment.id,
+            orderId: payment.provider_transaction_id,
+          });
+          response.status(502).json({ error: 'PalmPesa completion could not be applied to this purchase.' });
+          return;
+        }
+      } else if (providerStatus === 'CANCELLED') {
+        markPaymentCancelled(payment.id);
+      } else if (['FAILED', 'REJECTED', 'INITIATION_FAILED', 'EXPIRED'].includes(providerStatus)) {
+        markPaymentFailed(payment.id);
+      } else if (!['INITIATING', 'PENDING', 'AMBIGUOUS'].includes(providerStatus)) {
+        console.warn('[payment-warning] PalmPesa returned an unrecognized payment status; keeping payment pending.', {
+          orderId: payment.provider_transaction_id,
+          providerStatus,
+        });
+      }
+    } catch (error) {
+      console.error('[payment-error] PalmPesa status check failed.', error);
+      response.status(503).json({ error: 'PalmPesa payment confirmation is temporarily unavailable.' });
       return;
     }
   }

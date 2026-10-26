@@ -10,7 +10,11 @@ services:
       DB_PATH: /data/blog.sqlite
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      FASTLIPA_API_TOKEN: ${FASTLIPA_API_TOKEN:-}
+      PALMPESA_API_TOKEN: ${PALMPESA_API_TOKEN:-}
+      APP_BASE_URL: ${APP_BASE_URL:-https://wakubwa.chombezo.online}
+      PALMPESA_CALLBACK_URL: ${PALMPESA_CALLBACK_URL:-https://wakubwa.chombezo.online/api/webhook/palmpesa}
+      PALMPESA_CUSTOMER_EMAIL: ${PALMPESA_CUSTOMER_EMAIL:-daviskavenuke@gmail.com}
+      PALMPESA_CUSTOMER_NAME: ${PALMPESA_CUSTOMER_NAME:-Juma Hassan Shaibu}
       PREMIUM_MEDIA_PROTECTION_CONFIRMED: ${PREMIUM_MEDIA_PROTECTION_CONFIRMED:-false}
     expose:
       - "3000"

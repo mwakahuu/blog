@@ -52,7 +52,7 @@ const request = async <T,>(path: string, init?: RequestInit): Promise<T> => {
     providerMessage?: string;
   };
   if (import.meta.env.DEV && path === '/payments/create' && (result.providerCode || result.providerMessage)) {
-    console.info('[payment-debug] FastLipa rejection details:', {
+    console.info('[payment-debug] Payment provider rejection details:', {
       code: result.providerCode,
       message: result.providerMessage,
     });

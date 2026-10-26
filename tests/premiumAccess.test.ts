@@ -23,7 +23,7 @@ test('accepts only local Tanzanian mobile numbers beginning with 06 or 07', () =
   assert.equal(normalizeTanzanianPhone('071234567'), null);
 });
 
-test('normalizes FastLipa TZS amounts returned as either numbers or digit strings', () => {
+test('normalizes provider TZS amounts returned as either numbers or digit strings', () => {
   assert.equal(normalizeTzsAmount(3000), 3000);
   assert.equal(normalizeTzsAmount('3000'), 3000);
   assert.equal(normalizeTzsAmount(' 3000 '), 3000);

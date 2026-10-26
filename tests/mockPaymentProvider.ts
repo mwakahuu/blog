@@ -1,51 +1,82 @@
 import { randomUUID } from 'node:crypto';
 
-const transactions = new Map<string, { reference: string; amount: number; status: string }>();
+const transactions = new Map<string, {
+  transactionId: string;
+  orderId: string;
+  amount: number;
+  status: string;
+}>();
 const realFetch = globalThis.fetch.bind(globalThis);
 
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = input instanceof Request ? new URL(input.url) : new URL(input.toString());
 
-  if (url.hostname === 'api.fastlipa.com' && url.pathname === '/v1/transaction/create') {
-    const payload = JSON.parse(String(init?.body)) as { number: string; amount: number; reference: string };
-    if (payload.number === '255699999999') {
+  if (
+    url.hostname === 'palmpesa.drmlelwa.co.tz' &&
+    url.pathname === '/api/palmpesa/initiate' &&
+    init?.method === 'POST'
+  ) {
+    const payload = JSON.parse(String(init.body)) as {
+      transaction_id: string;
+      phone: string;
+      amount: number;
+      callback_url: string;
+      email: string;
+      name: string;
+      address: string;
+      postcode: string;
+    };
+    const headers = new Headers(init.headers);
+    if (
+      headers.get('authorization') !== 'Bearer test-provider-token' ||
+      payload.callback_url !== 'https://wakubwa.chombezo.online/api/webhook/palmpesa' ||
+      payload.email !== 'daviskavenuke@gmail.com' ||
+      payload.name !== 'Juma Hassan Shaibu' ||
+      !/^0[67]\d{8}$/.test(payload.phone) ||
+      payload.amount !== 3000 ||
+      !payload.transaction_id.startsWith('tx-') ||
+      payload.address !== 'Dar es Salaam' ||
+      payload.postcode !== '00000'
+    ) {
+      return Response.json({ success: false, message: 'PalmPesa defaults do not match.' }, { status: 422 });
+    }
+    if (payload.phone === '0699999999') {
       return Response.json({
-        status: false,
+        success: false,
         code: 'TEST_REJECTED',
         message: 'Test payment rejection.',
       }, { status: 422 });
     }
-    const tranID = `mock-${randomUUID()}`;
-    transactions.set(tranID, {
-      reference: payload.reference,
+    const orderId = `mock-${randomUUID()}`;
+    const status = payload.phone === '0612345678'
+      ? 'PROCESSING'
+      : payload.phone === '0622345678' ? 'CANCELLED'
+        : payload.phone === '0692345678' ? 'REJECTED' : 'COMPLETED';
+    const transaction = {
+      transactionId: payload.transaction_id,
+      orderId,
       amount: payload.amount,
-      status: payload.number === '255612345678'
-        ? 'PENDING'
-        : payload.number === '255622345678' ? 'CANCELLED'
-          : payload.number === '255692345678' ? 'FAILED' : 'COMPLETED',
-    });
+      status,
+    };
+    transactions.set(orderId, transaction);
     return Response.json({
-      status: true,
-      message: 'Payment initiated',
-      data: { tranID, amount: payload.amount, number: payload.number, payment_status: 'PENDING' },
+      order_id: orderId,
     });
   }
 
-  if (url.hostname === 'api.fastlipa.com' && url.pathname === '/v1/transaction/status') {
-    const tranID = url.searchParams.get('tranid') || '';
-    const transaction = transactions.get(tranID);
-    if (!transaction) return Response.json({ status: false }, { status: 404 });
-    return Response.json({
-      status: true,
-      message: 'Payment status retrieved',
-      data: {
-        tranid: tranID,
-        payment_status: transaction.status,
-        amount: String(transaction.amount),
-        network: 'AIRTEL',
-        time: new Date().toISOString(),
-      },
-    });
+  if (
+    url.hostname === 'palmpesa.drmlelwa.co.tz' &&
+    url.pathname === '/api/order-status' &&
+    init?.method === 'POST'
+  ) {
+    const payload = JSON.parse(String(init.body)) as { order_id: string };
+    const headers = new Headers(init.headers);
+    if (headers.get('authorization') !== 'Bearer test-provider-token') {
+      return Response.json({ message: 'PalmPesa authorization is invalid.' }, { status: 401 });
+    }
+    const transaction = transactions.get(payload.order_id);
+    if (!transaction) return Response.json({ message: 'Payment not found.' }, { status: 404 });
+    return Response.json({ data: [{ payment_status: transaction.status }] });
   }
 
   if (url.hostname === 'cdn.test' || url.hostname === 'res.cloudinary.com' || url.hostname.endsWith('.b-cdn.net')) {

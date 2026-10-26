@@ -128,13 +128,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
         setPaymentMessage('Thibitisha ombi la malipo kwenye simu yako. Tunakagua hali ya malipo...');
       } catch (error) {
         if (!active) return;
-        if (error instanceof ApiRequestError && [404, 502].includes(error.status)) {
-          void abandonPremiumPayment(paymentReference).catch(() => undefined);
-          setPaymentReference(null);
-          setPaymentPhase('error');
-          setPaymentMessage('Ombi halikuthibitishwa. Jaribu namba nyingine.');
-          return;
-        }
+        if (import.meta.env.DEV) console.warn('[payment-debug] Status check failed; continuing to poll.', error);
         setPaymentMessage('Bado tunasubiri uthibitisho wa malipo...');
       }
       if (active) timer = window.setTimeout(checkPayment, 4000);
