@@ -1,4 +1,5 @@
 import React from 'react';
+import { getWhatsAppUrl, WHATSAPP_PHONE_DISPLAY } from '../whatsapp';
 import { Post, ViewMode } from '../types';
 
 interface FooterProps {
@@ -85,12 +86,12 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
             <div className="pt-1">
               <a
-                href="https://wa.me/255794406730?text=Habari,%20nahitaji%20mawasiliano%20na%20CHOMBEZO"
+                href={getWhatsAppUrl('Habari, nahitaji mawasiliano na CHOMBEZO')}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase px-4 py-2.5 rounded-xs transition-colors"
               >
-                <span>WhatsApp: 0794406730</span>
+                <span>WhatsApp: {WHATSAPP_PHONE_DISPLAY}</span>
               </a>
             </div>
           </div>

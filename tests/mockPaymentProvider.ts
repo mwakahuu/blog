@@ -49,9 +49,10 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
     }
     const orderId = `mock-${randomUUID()}`;
     const status = payload.phone === '0612345678'
-      ? 'PROCESSING'
+      ? 'PENDING_API_CHECK'
       : payload.phone === '0622345678' ? 'CANCELLED'
-        : payload.phone === '0692345678' ? 'REJECTED' : 'COMPLETED';
+        : payload.phone === '0692345678' ? 'REJECTED'
+          : payload.phone === '0688888888' ? 'NOT_FOUND' : 'COMPLETED';
     const transaction = {
       transactionId: payload.transaction_id,
       orderId,
@@ -76,6 +77,9 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
     }
     const transaction = transactions.get(payload.order_id);
     if (!transaction) return Response.json({ message: 'Payment not found.' }, { status: 404 });
+    if (transaction.status === 'NOT_FOUND') {
+      return Response.json({ message: 'Order not found.' }, { status: 404 });
+    }
     return Response.json({ data: [{ payment_status: transaction.status }] });
   }
 

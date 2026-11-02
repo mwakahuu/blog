@@ -1,4 +1,5 @@
 import React from 'react';
+import { getWhatsAppUrl, WHATSAPP_PHONE_DISPLAY } from '../whatsapp';
 
 interface HeaderProps {
   onNavigateHome: () => void;
@@ -23,19 +24,19 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome, onAdClick }) => 
         </div>
 
         {/* Top Static Banner Advertisement */}
-        <div className="w-full lg:max-w-[728px] xl:max-w-[840px] h-[90px] sm:h-[105px] relative rounded-xs overflow-hidden shadow-lg border border-slate-700/60 bg-black">
+        <div className="relative w-full overflow-hidden rounded-xs border border-slate-700/60 bg-black shadow-lg lg:h-[90px] lg:max-w-[728px] xl:max-w-[840px]">
           <a
-            href="https://wa.me/255794406730?text=Habari,%20nahitaji%20maelezo%20kuhusu%20tangazo%20lako"
+            href={getWhatsAppUrl('Habari, nahitaji maelezo kuhusu tangazo lako')}
             target="_blank"
             rel="noreferrer"
-            className="w-full h-full block group"
-            title="Bofya kuwasiliana kupitia WhatsApp 0794406730"
+            className="group block w-full"
+            title={`Bofya kuwasiliana kupitia WhatsApp ${WHATSAPP_PHONE_DISPLAY}`}
           >
             <img
               src="https://i.ibb.co/fVNYGQf8/miliki-website-yako-ya-xxx-leo-2.png"
               alt="Banner Advertisement"
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+              className="block h-auto w-full object-contain transition-opacity group-hover:opacity-90 lg:h-full"
             />
           </a>
         </div>

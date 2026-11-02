@@ -362,6 +362,58 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'home' && (
           <>
+            {videos.length > 0 && (
+              <section className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:hidden">
+                <div className="mb-4 flex items-center justify-between border-b-2 border-slate-200 pb-2">
+                  <h2 className="font-condensed text-lg font-bold uppercase tracking-tight text-slate-900">
+                    Video za karibuni
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate('videos')}
+                    className="text-xs font-bold uppercase tracking-wide text-red-600"
+                  >
+                    Tazama zote
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {videos.slice(0, 5).map((video) => (
+                    <button
+                      key={video.id}
+                      type="button"
+                      onClick={() => handlePlayVideo(video)}
+                      aria-label={`Fungua video: ${video.title}`}
+                      className="group min-w-0 overflow-hidden border border-slate-200 bg-white text-left shadow-xs"
+                    >
+                      <span className="relative block aspect-[4/3] overflow-hidden bg-slate-200">
+                        <img
+                          src={video.thumbnail}
+                          alt=""
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-white">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 shadow-md" aria-hidden="true">
+                            <svg className="ml-0.5 h-5 w-5 fill-current" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </span>
+                        </span>
+                      </span>
+                      <span className="block p-2.5">
+                        <span className="line-clamp-2 block text-sm font-bold leading-snug text-slate-900">
+                          {video.title}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-slate-500">
+                          {video.duration}{video.uploadDate ? ` · ${video.uploadDate}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {/* The 4-Column Exact MagazineSpare Editorial Section */}
             <MainGrid
               posts={posts}

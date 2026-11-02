@@ -154,6 +154,9 @@ test('PalmPesa purchases grant five-hour access and authorize every premium stre
   const callbackHealthResponse = await fetch(`${origin}/api/webhook/palmpesa`);
   assert.equal(callbackHealthResponse.status, 200);
   assert.deepEqual(await callbackHealthResponse.json(), { ready: true });
+  const malformedPathResponse = await fetch(`${origin}/%c0`);
+  assert.equal(malformedPathResponse.status, 400);
+  assert.deepEqual(await malformedPathResponse.json(), { error: 'Invalid URL path.' });
   for (const id of premiumVideos) {
     const publicVideo = content.videos.find((video) => video.id === id);
     assert.equal(publicVideo?.isPremium, true);
@@ -240,6 +243,19 @@ test('PalmPesa purchases grant five-hour access and authorize every premium stre
   assert.equal(abandonResponse.status, 200);
   assert.equal((await abandonResponse.json() as { abandoned: boolean }).abandoned, true);
   assert.equal((await (await request('/api/access/status')).json() as { pendingReference: string | null }).pendingReference, null);
+
+  const missingProviderOrderResponse = await request('/api/payments/create', {
+    method: 'POST',
+    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: '0688888888' }),
+  });
+  assert.equal(missingProviderOrderResponse.status, 202);
+  const missingProviderOrder = await missingProviderOrderResponse.json() as { reference: string };
+  const missingProviderOrderStatus = await request(
+    `/api/payments/status/${encodeURIComponent(missingProviderOrder.reference)}`,
+  );
+  assert.equal(missingProviderOrderStatus.status, 200);
+  assert.equal((await missingProviderOrderStatus.json() as { status: string }).status, 'pending');
 
   const cancelledResponse = await request('/api/payments/create', {
     method: 'POST',

@@ -11,6 +11,7 @@ import {
   type PremiumAccessStatus,
 } from '../contentStore';
 import { HlsVideoPlayer } from './HlsVideoPlayer';
+import { getWhatsAppUrl } from '../whatsapp';
 
 const getPaymentInitiationMessage = (error: unknown) => {
   if (error instanceof ApiRequestError) {
@@ -302,7 +303,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                     <span>{selectedVideo.likes || 'Like'}</span>
                   </button>
                   <a
-                    href={`https://wa.me/255794406730?text=${encodeURIComponent('Tazama video hii: ' + selectedVideo.title)}`}
+                    href={getWhatsAppUrl(`Tazama video hii: ${selectedVideo.title}`)}
                     target="_blank"
                     rel="noreferrer"
                     className="catalog-video-action-button"

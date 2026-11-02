@@ -424,6 +424,18 @@ const palmPesaHeaders = (token: string) => ({
 });
 
 const PALMPESA_BASE_URL = 'https://palmpesa.drmlelwa.co.tz';
+const PALMPESA_STATUS_CHECK_INTERVAL_MS = 15_000;
+const lastPalmPesaStatusChecks = new Map<string, number>();
+
+class PalmPesaOrderNotFoundError extends Error {
+  constructor() {
+    super('PalmPesa could not find this order.');
+    this.name = 'PalmPesaOrderNotFoundError';
+  }
+}
+
+const isPalmPesaPendingStatus = (status: string) =>
+  ['INITIATING', 'PENDING', 'PENDING_API_CHECK', 'PROCESSING', 'AMBIGUOUS'].includes(status);
 
 const readPalmPesaStatus = async (orderId: string, token: string): Promise<string> => {
   const result = await fetch(`${PALMPESA_BASE_URL}/api/order-status`, {
@@ -433,6 +445,7 @@ const readPalmPesaStatus = async (orderId: string, token: string): Promise<strin
     signal: AbortSignal.timeout(12_000),
   });
   const body: unknown = await result.json().catch(() => null);
+  if (result.status === 404) throw new PalmPesaOrderNotFoundError();
   if (!result.ok) {
     throw new Error(`PalmPesa order-status request failed (${result.status}).`);
   }
@@ -571,6 +584,7 @@ app.post('/api/webhook/palmpesa', async (request, response) => {
     response.status(400).json({ error: 'Invalid PalmPesa callback payload.' });
     return;
   }
+  console.info('[payment-info] PalmPesa callback received.', { orderId, callbackStatus });
 
   const payment = database.prepare(`
     select * from payments where provider_transaction_id = ? and provider = 'palmpesa'
@@ -584,6 +598,14 @@ app.post('/api/webhook/palmpesa', async (request, response) => {
     const config = getPalmPesaConfig();
     if (!config) throw new Error('PalmPesa API token is not configured.');
     const providerStatus = await readPalmPesaStatus(orderId, config.token);
+    lastPalmPesaStatusChecks.set(orderId, Date.now());
+    if (callbackStatus !== providerStatus) {
+      console.info('[payment-info] PalmPesa callback received; applying authenticated provider status.', {
+        orderId,
+        callbackStatus,
+        providerStatus,
+      });
+    }
     if (providerStatus === 'COMPLETED') {
       const verifiedPayment: PalmPesaPayment = {
         transaction_id: payment.reference,
@@ -604,13 +626,21 @@ app.post('/api/webhook/palmpesa', async (request, response) => {
       markPaymentCancelled(payment.id);
     } else if (providerStatus === 'FAILED' || providerStatus === 'REJECTED') {
       markPaymentFailed(payment.id);
-    } else if (!['INITIATING', 'PENDING', 'AMBIGUOUS'].includes(providerStatus)) {
+    } else if (!isPalmPesaPendingStatus(providerStatus)) {
       console.warn('[payment-warning] PalmPesa callback returned a non-final status.', {
         orderId,
         providerStatus,
       });
     }
   } catch (error) {
+    if (error instanceof PalmPesaOrderNotFoundError) {
+      console.warn('[payment-warning] PalmPesa callback order is not yet available through order-status.', {
+        orderId,
+        callbackStatus,
+      });
+      response.status(200).send('OK');
+      return;
+    }
     console.error('[payment-error] PalmPesa callback processing failed.', error);
     response.status(500).json({ error: 'PalmPesa callback could not be processed.' });
     return;
@@ -739,43 +769,55 @@ app.get('/api/payments/status/:reference', async (request, response) => {
   }
 
   if (payment.status === 'pending' && payment.provider_transaction_id) {
-    try {
-      const palmPesaConfig = getPalmPesaConfig();
-      if (!palmPesaConfig) {
-        response.status(503).json({ error: 'PalmPesa payment configuration is invalid.' });
-        return;
-      }
-      const providerStatus = await readPalmPesaStatus(payment.provider_transaction_id, palmPesaConfig.token);
-      if (providerStatus === 'COMPLETED') {
-        const verifiedPayment: PalmPesaPayment = {
-          transaction_id: payment.reference,
-          order_id: payment.provider_transaction_id,
-          status: providerStatus,
-          amount: payment.amount_tzs,
-          currency: 'TZS',
-        };
-        if (!completePayment(payment.id, verifiedPayment)) {
-          console.error('[payment-error] PalmPesa reported completion but access could not be applied.', {
-            paymentId: payment.id,
-            orderId: payment.provider_transaction_id,
-          });
-          response.status(502).json({ error: 'PalmPesa completion could not be applied to this purchase.' });
+    const lastCheckAt = lastPalmPesaStatusChecks.get(payment.provider_transaction_id) ?? 0;
+    const checkDue = Date.now() - lastCheckAt >= PALMPESA_STATUS_CHECK_INTERVAL_MS;
+    if (checkDue) lastPalmPesaStatusChecks.set(payment.provider_transaction_id, Date.now());
+    if (checkDue) {
+      try {
+        const palmPesaConfig = getPalmPesaConfig();
+        if (!palmPesaConfig) {
+          response.status(503).json({ error: 'PalmPesa payment configuration is invalid.' });
           return;
         }
-      } else if (providerStatus === 'CANCELLED') {
-        markPaymentCancelled(payment.id);
-      } else if (['FAILED', 'REJECTED', 'INITIATION_FAILED', 'EXPIRED'].includes(providerStatus)) {
-        markPaymentFailed(payment.id);
-      } else if (!['INITIATING', 'PENDING', 'AMBIGUOUS'].includes(providerStatus)) {
-        console.warn('[payment-warning] PalmPesa returned an unrecognized payment status; keeping payment pending.', {
-          orderId: payment.provider_transaction_id,
-          providerStatus,
-        });
+        const providerStatus = await readPalmPesaStatus(payment.provider_transaction_id, palmPesaConfig.token);
+        lastPalmPesaStatusChecks.set(payment.provider_transaction_id, Date.now());
+        if (providerStatus === 'COMPLETED') {
+          const verifiedPayment: PalmPesaPayment = {
+            transaction_id: payment.reference,
+            order_id: payment.provider_transaction_id,
+            status: providerStatus,
+            amount: payment.amount_tzs,
+            currency: 'TZS',
+          };
+          if (!completePayment(payment.id, verifiedPayment)) {
+            console.error('[payment-error] PalmPesa reported completion but access could not be applied.', {
+              paymentId: payment.id,
+              orderId: payment.provider_transaction_id,
+            });
+            response.status(502).json({ error: 'PalmPesa completion could not be applied to this purchase.' });
+            return;
+          }
+        } else if (providerStatus === 'CANCELLED') {
+          markPaymentCancelled(payment.id);
+        } else if (['FAILED', 'REJECTED', 'INITIATION_FAILED', 'EXPIRED'].includes(providerStatus)) {
+          markPaymentFailed(payment.id);
+        } else if (!isPalmPesaPendingStatus(providerStatus)) {
+          console.warn('[payment-warning] PalmPesa returned an unrecognized payment status; keeping payment pending.', {
+            orderId: payment.provider_transaction_id,
+            providerStatus,
+          });
+        }
+      } catch (error) {
+        if (error instanceof PalmPesaOrderNotFoundError) {
+          console.warn('[payment-warning] PalmPesa order is not yet available through order-status; keeping payment pending.', {
+            orderId: payment.provider_transaction_id,
+          });
+        } else {
+          console.error('[payment-error] PalmPesa status check failed.', error);
+          response.status(503).json({ error: 'PalmPesa payment confirmation is temporarily unavailable.' });
+          return;
+        }
       }
-    } catch (error) {
-      console.error('[payment-error] PalmPesa status check failed.', error);
-      response.status(503).json({ error: 'PalmPesa payment confirmation is temporarily unavailable.' });
-      return;
     }
   }
 
@@ -1096,20 +1138,6 @@ app.use('/api', (_request, response) => {
   response.status(404).json({ error: 'API endpoint not found.' });
 });
 
-app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
-  if (isRecord(error) && typeof error.status === 'number') {
-    const message = error.status === 413 ? 'Request body is too large.' : 'Invalid request.';
-    response.status(error.status).json({ error: message });
-    return;
-  }
-  if (isRecord(error) && typeof error.code === 'string' && error.code.startsWith('SQLITE_CONSTRAINT')) {
-    response.status(409).json({ error: 'This content conflicts with an existing record.' });
-    return;
-  }
-  console.error('Request failed:', error);
-  response.status(500).json({ error: 'An unexpected server error occurred.' });
-});
-
 const port = Number(process.env.PORT || 3000);
 
 if (process.env.NODE_ENV === 'production') {
@@ -1139,6 +1167,24 @@ if (process.env.NODE_ENV === 'production') {
     }
   });
 }
+
+app.use((error: unknown, _request: Request, response: Response, _next: NextFunction) => {
+  if (error instanceof URIError) {
+    response.status(400).json({ error: 'Invalid URL path.' });
+    return;
+  }
+  if (isRecord(error) && typeof error.status === 'number') {
+    const message = error.status === 413 ? 'Request body is too large.' : 'Invalid request.';
+    response.status(error.status).json({ error: message });
+    return;
+  }
+  if (isRecord(error) && typeof error.code === 'string' && error.code.startsWith('SQLITE_CONSTRAINT')) {
+    response.status(409).json({ error: 'This content conflicts with an existing record.' });
+    return;
+  }
+  console.error('Request failed:', error);
+  response.status(500).json({ error: 'An unexpected server error occurred.' });
+});
 
 httpServer.listen(port, () => {
   console.log(`Website and local SQLite API listening on port ${port}`);
