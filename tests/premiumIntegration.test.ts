@@ -215,7 +215,7 @@ test('PalmPesa purchases grant five-hour access and authorize every premium stre
   });
   assert.equal(pendingResponse.status, 202);
   const pending = await pendingResponse.json() as { reference: string; amount: number };
-  assert.equal(pending.amount, 3000);
+  assert.equal(pending.amount, 1500);
   assert.match(pending.reference, /^tx-/);
   const pendingStatus = await request(`/api/payments/status/${encodeURIComponent(pending.reference)}`);
   assert.equal(pendingStatus.status, 200);

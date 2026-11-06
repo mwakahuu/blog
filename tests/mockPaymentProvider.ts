@@ -33,7 +33,7 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
       payload.email !== 'daviskavenuke@gmail.com' ||
       payload.name !== 'Juma Hassan Shaibu' ||
       !/^0[67]\d{8}$/.test(payload.phone) ||
-      payload.amount !== 3000 ||
+      payload.amount !== 1500 ||
       !payload.transaction_id.startsWith('tx-') ||
       payload.address !== 'Dar es Salaam' ||
       payload.postcode !== '00000'

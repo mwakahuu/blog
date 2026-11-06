@@ -974,7 +974,7 @@ export const AdminPanelPage: React.FC<AdminPanelPageProps> = ({
                   onChange={(event) => setVideoIsPremium(event.target.checked)}
                   className="h-5 w-5 accent-red-600"
                 />
-                Premium video (one 3,000 TZS payment unlocks every premium video for 5 hours)
+                Premium video (one 1,500 TZS payment unlocks every premium video for 5 hours)
               </label>
 
               <div className="flex items-center gap-4 pt-3">

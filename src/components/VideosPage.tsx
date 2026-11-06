@@ -455,7 +455,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                   type="submit"
                   disabled={paymentPhase === 'starting'}
                 >
-                  {paymentPhase === 'starting' ? <><LoaderCircle className="animate-spin" size={18} /> Inatuma...</> : 'Lipia sasa · TSh 3,000'}
+                  {paymentPhase === 'starting' ? <><LoaderCircle className="animate-spin" size={18} /> Inatuma...</> : 'Lipia sasa · TSh 1,500'}
                 </button>
               </form>
             )}
@@ -466,7 +466,7 @@ export const VideosPage: React.FC<VideosPageProps> = ({
                 referrerPolicy="no-referrer"
               />
             </div>
-            <small>Malipo ya TSh 3,000 yanafungua video zote kwa saa 5. Hakuna akaunti inayohitajika.</small>
+            <small>Malipo ya TSh 1,500 yanafungua video zote kwa saa 5. Hakuna akaunti inayohitajika.</small>
           </section>
         </div>
       )}

@@ -24,10 +24,10 @@ test('accepts only local Tanzanian mobile numbers beginning with 06 or 07', () =
 });
 
 test('normalizes provider TZS amounts returned as either numbers or digit strings', () => {
-  assert.equal(normalizeTzsAmount(3000), 3000);
-  assert.equal(normalizeTzsAmount('3000'), 3000);
-  assert.equal(normalizeTzsAmount(' 3000 '), 3000);
-  assert.equal(normalizeTzsAmount('3000.00'), null);
+  assert.equal(normalizeTzsAmount(1500), 1500);
+  assert.equal(normalizeTzsAmount('1500'), 1500);
+  assert.equal(normalizeTzsAmount(' 1500 '), 1500);
+  assert.equal(normalizeTzsAmount('1500.00'), null);
   assert.equal(normalizeTzsAmount('invalid'), null);
   assert.equal(normalizeTzsAmount(Number.MAX_SAFE_INTEGER + 1), null);
 });
